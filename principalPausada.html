@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Realidad Aumentada</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header>
+      <nav>
+        <img
+          src="assets/img/logocolor.png"
+          alt="Logo"
+          class="logo"
+        />
+        <ul class="nav-links">
+          <li><a href="#home">Inicio</a></li>
+          <li><a href="#ra">¿Qué es la RA?</a></li>
+          <li><a href="#services">Nuestro Servicio</a></li>
+          <li><a href="#about">¿Quiénes somos?</a></li>
+        </ul>
+        <div class="menu-toggle">
+          <div class="hamburger"></div>
+          <div class="hamburger"></div>
+          <div class="hamburger"></div>
+        </div>
+      </nav>
+    </header>
+
+    <!-- Sección Principal -->
+    <section id="home" class="main-section">
+      <div class="overlay"></div>
+      <button class="cta-button" onclick="window.location.href='realitytour.html'">RealityTour</button>
+    </section>
+
+    <!-- ¿Qué es la RA? -->
+    <section id="ra" class="ra-section">
+      <h2 class="hidden">¿Qué es la RA?</h2>
+      <div class="ra-content hidden">
+        <div class="description hidden">
+          <p>Breve descripción de la realidad aumentada y su potencial.</p>
+        </div>
+        <div class="Assets-slider hidden">
+          <img
+            src="assets/img/imggob.jpg"
+            alt="Imagen 1"
+            class="slider-image active"
+          />
+          <img src="assets/img/LaRiojaCapital.jpg" alt="Imagen 2" class="slider-image" />
+          <img src="assets/img/paseo.png" alt="Imagen 3" class="slider-image" />
+          <img
+            src="assets/img/capturacorregido.png"
+            alt="Imagen 4"
+            class="slider-image"
+          />
+          <img src="assets/img/plaza.jpg" 
+               alt="Imagen 5" 
+               class="slider-image" 
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- Nuestro Servicio -->
+    <section id="services" class="services-section">
+      <div class="overlay hidden"></div>
+      <div class="services-content hidden">
+        <h2 class="hidden">Nuestro Servicios</h2>
+        <img src="assets/img/plaza.jpg" alt="Servicio" class="service-image" />
+        <p class="service-description">
+          Breve descripción de la realidad aumentada en el turismo.
+        </p>
+      </div>
+    </section>
+
+    <!-- ¿Quiénes somos? -->
+    <section id="about" class="biography-section">
+      <h2 class="hidden">¿Quiénes somos?</h2>
+      <div class="bio-container hidden">
+        <div class="bio">
+          <img class="hidden" src="assets/img/Ale.jpg" alt="Alejandro Torres" />
+          <h3 class="hidden">Alejandro Torres</h3>
+          <p class="hidden">Pequeña biografía de Alejandro Torres.</p>
+        </div>
+        <div class="bio hidden">
+          <img class="hidden" src="assets/img/Juan.jpg" alt="Juan Brizuela" />
+          <h3 class="hidden">Juan Brizuela</h3>
+          <p class="hidden">Pequeña biografía de Juan Brizuela.</p>
+        </div>
+      </div>
+    </section>
+
+    <script src="js/script.js"></script>
+  </body>
+</html>

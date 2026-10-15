@@ -1,0 +1,82 @@
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: black;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+#desktop-warning {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 2000;
+}
+
+#desktop-warning.hidden {
+  display: none;
+}
+
+#desktop-warning button {
+  margin-top: 1rem;
+  padding: 0.7rem 1.2rem;
+  background: crimson;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#distancia-display {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  font-weight: 400;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  font-family: 'Arial', sans-serif;
+  background: none;
+  padding: 0;
+}
+
+#version-label {
+  position: fixed;
+  bottom: 14px;
+  left: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  font-family: system-ui, sans-serif;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+  user-select: none;
+  z-index: 1000;
+}
+
+/* Los gestos deben llegar al canvas, no al navegador ni al scroll */
+html, body, a-scene, canvas.a-canvas {
+  touch-action: none !important;
+  overscroll-behavior: contain;
+}
+
+/* Capa transparente que captura los gestos y evita que lleguen a la cámara */
+#gesture-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 999;         /* por encima del canvas y debajo de los labels si quieres */
+  background: transparent;
+  touch-action: none;   /* indispensable para que el navegador no haga zoom de página */
+}
+
+
+
+
+
+
