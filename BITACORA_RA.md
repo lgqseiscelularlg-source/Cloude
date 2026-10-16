@@ -2,7 +2,7 @@
 
 > Responsable técnica: **Robin** (IA de ingeniería). Supervisión: **Nami** (IA supervisora). Dirección: **Ale / Capitán**.
 > Rama de trabajo: `claude/zealous-ramanujan-j9jf59` (no fusionada a `main`).
-> Última actualización: 2026-10-16. Entrada #5: evaluación de la geolocalización real (sólo análisis y experimento aislado, sin cambios funcionales). Ver **§9**.
+> Última actualización: 2026-10-16. Entrada #6: **PoC geolocalizada implementada** (`poc-geo.html`), 🧪 30/30 en emulación, **pendiente de validar en smartphone**. Ver **§10**. La v78 no se modificó.
 > Estado v78: gestos **🟢 verificados en dispositivo** por el Capitán (entrada #4).
 
 ## Convenciones de esta bitácora
@@ -266,9 +266,10 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
 | P5 | **Anclaje GPS real del modelo** (D10) | 🔎 Analizado en §9. Recomendación: prueba de concepto aislada con AR.js 3.4.8 + A-Frame 1.6.0. ⏳ Pendiente de autorización (P9) |
 | P6 | Fusionar la rama a `main` | ⏳ Pendiente; sólo con autorización expresa. Gestos v78 ya 🟢 en dispositivo |
 | P7 | Sentido de la inclinación (R4) y sensibilidad | ✅ Sin quejas en la prueba en dispositivo; se mantiene |
-| P8 | Crear la etiqueta `v78` en el commit `ab62cc7` como punto de reversión | ⏳ Pendiente (es una escritura en GitHub; ver §9.10) |
-| P9 | Implementar la prueba de concepto de §9.8 (archivos nuevos, sin tocar v78) | ⏳ Pendiente de autorización |
-| P10 | Coordenada de prueba para la PoC: el objetivo real o una cercana al Capitán (vía `?lat=&lon=`) | ⏳ Pendiente |
+| P8 | Crear la etiqueta `v78` en el commit `ab62cc7` como punto de reversión | ⚠️ Autorizada. Creada **localmente**, pero el entorno de Robin rechaza publicar etiquetas (HTTP 403 del proxy de git; sólo admite la rama de trabajo). **Crearla desde GitHub** (pasos en §10.8) |
+| P9 | Implementar la prueba de concepto de §9.8 (archivos nuevos, sin tocar v78) | ✅ Autorizada e implementada (entrada #6). Pendiente de validar en smartphone |
+| P10 | Coordenada de prueba para la PoC | ✅ Resuelto: configurable por URL (`?lat=&lon=`); por defecto, el objetivo real |
+| P11 | Migrar la aplicación principal | ⏳ **No autorizada**. Sólo tras la validación real de la PoC (§9.9) |
 
 ---
 
@@ -281,6 +282,7 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
 | 3 | 2026-10-16 | Robin | Implementación | Autorizada por el Capitán y Nami, con precauciones de espacios de coordenadas y límite de ±80°. Pivote hijo del ancla con centrado del GLB; rotación horizontal y vertical con cuaterniones y límite de ±80°; pinza protegida; `touchend`/`touchcancel`; log y etiquetas sin captura de toques; GLB extraído sin modificar; `.nojekyll`; versión 78. Hallazgos nuevos: D10 (AR.js 1.7.5 sin GPS 3D) y D11. D3 pasa de hipótesis a confirmado. Commit `ab62cc7`. | `script.js`, `index.html`, `style.css`, `models/goku.glb`, `.nojekyll`, `BITACORA_RA.md` | 🧪 30/31 en emulación (la única falla es del entorno). Ver #4 |
 | 4 | 2026-10-16 | Capitán / Nami | Prueba en dispositivo | v78 en smartphone real: rotación horizontal, vertical, zoom y rotación sin quedar boca abajo **confirmados**. Observaciones O1 (desaparece al girar) y O2 (acompaña al caminar). Contexto: el perímetro de 15 m fue una decisión deliberada. | — | 🟢 Gestos v78 verificados en dispositivo. Pasos 7, 9 y 10 de §6.2 sin reportar |
 | 5 | 2026-10-16 | Robin | Análisis + experimento aislado | Evaluación de la geolocalización real (§9): fuentes oficiales de AR.js (npm `@ar-js-org/ar.js` 3.4.8, documentación y ejemplos oficiales) y LocAR.js. Experimento en el scratchpad (**fuera del repo**) con A-Frame 1.6.0 + AR.js 3.4.8 + `script.js` v78: 16/16 en emulación tras 5 ajustes necesarios (D12–D16). Recomendación: PoC aislada. Sin cambios funcionales en el repo. | `BITACORA_RA.md` | 🧪 Emulación. 🔵 **Nada verificado en dispositivo** |
+| 6 | 2026-10-16 | Robin | Implementación PoC | Autorizada por el Capitán y Nami. `poc-geo.html` + `poc-geo.js` + `lib/` (A-Frame 1.6.0, AR.js 3.4.8). Ajustes D12–D16. Proyección local en metros. Parámetros URL. Cubo de referencia. HUD con autodiagnóstico de coherencia. Gestos v78 copiados textualmente. Corregido durante las pruebas: con `lat`/`lon` inválidas el ancla recibía NaN. Etiqueta `v78` creada localmente; su publicación fue rechazada por el entorno (403). | `poc-geo.html`, `poc-geo.js`, `lib/*`, `BITACORA_RA.md` | 🧪 PoC 30/30; regresión v78 30/31 (la única falla es del entorno); v78 sin cambios respecto de `ab62cc7`. 🔵 **Pendiente en smartphone** |
 
 <!-- Nuevas entradas: añadir filas al final; no borrar historial. -->
 
@@ -451,3 +453,146 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
   - Volver atrás = `git revert` de ese commit (o restaurar desde la etiqueta `v78`) y push. GitHub Pages republica en 1–3 minutos.
   - La etiqueta «Versión 7x» de la pantalla permite confirmar en el teléfono qué versión está activa.
 - **Nota:** `main` sigue en la versión 77. v78 sólo existe en la rama `claude/zealous-ramanujan-j9jf59`. Fusionarla a `main` (P6) daría una base estable antes de la PoC, pero requiere autorización expresa.
+
+---
+
+## 10. PoC geolocalizada (entrada #6) — 🔵 implementada, 🧪 verificada en emulación, **pendiente de validar en smartphone**
+
+### 10.1 Archivos (todos nuevos; la v78 no se tocó)
+
+| Archivo | Contenido |
+|---|---|
+| `poc-geo.html` | Escena de la PoC con los ajustes D13 y D16; HUD; log en pantalla con captura de errores JS (`❌ ERROR JS`); reutiliza `style.css` (sólo lectura) |
+| `poc-geo.js` | Lógica geolocalizada con los ajustes D12, D14 y D15, más los parámetros URL, el HUD y el **bloque de gestos copiado textualmente de `script.js` v78** (verificado con `diff`: idéntico) |
+| `lib/aframe-v1.6.0.min.js` | A-Frame 1.6.0 (SHA-256 `197b3200…ac17fc`) |
+| `lib/aframe-ar-3.4.8.js` | AR.js 3.4.8, build A-Frame (SHA-256 `aec697f1…f917d`) |
+| `lib/ar-threex-location-only-3.4.8.js` | AR.js 3.4.8, `THREEx` de geolocalización (SHA-256 `bb44e11b…9204`) |
+
+- `git diff ab62cc7 -- index.html script.js style.css models/goku.glb .nojekyll` → **vacío**: la v78 está intacta.
+- La PoC no carga nada de CDNs externas: todo se sirve desde el repo.
+
+### 10.2 Cómo funciona
+- **Escena:** sin `embedded` (D16). `<a-camera>` **antes** que el ancla (D13), con:
+  - `gps-new-camera="gpsMinDistance: 5; positionMinAccuracy: 30; initialPositionAsOrigin: true"`
+  - `arjs-device-orientation-controls="smoothingFactor: 0.1"`
+- **Proyección local en metros** (novedad respecto de §9):
+  - Se reemplaza la Spherical Mercator de AR.js por una equirectangular local centrada en el objetivo, mediante la API documentada `threeLoc.setProjection()`.
+  - Así **1 unidad = 1 m real**: se elimina el +15 % de la Mercator (G5).
+  - Error de la aproximación: < 0,1 m a 1 km.
+  - Para comparar con la de AR.js: `&proj=mercator`.
+- **Ancla (D14):** recibe `gps-new-entity-place` con la coordenada objetivo en el **primer fix aceptado**, cuando ya existe el origen del mundo.
+- **Modelo (D12, D15):**
+  - Se crea sólo con la escena cargada y el ancla ya geolocalizada.
+  - Su centro visual, estimado con los huesos, queda **sobre la coordenada**, a `h` metros del suelo (por defecto 3 m: Goku mide ≈ 4,8 m, así que queda de pie sobre el cubo).
+  - `frustumCulled = false` en las mallas con esqueleto: su esfera envolvente en three r164 es errónea.
+- **Cubo de referencia:** rojo, de 1 m, apoyado en el suelo **exactamente** en la coordenada. Es el testigo físico del anclaje, independiente del GLB.
+- **Perímetro:** se conserva como parámetro. `radio=0` (por defecto) = sin límite; `radio=15` = como en v78.
+- **Gestos:** idénticos a v78. Actúan sólo sobre el pivote; el ancla nunca se rota, escala ni mueve.
+
+### 10.3 Parámetros URL
+
+| Parámetro | Por defecto | Uso |
+|---|---|---|
+| `lat`, `lon` | −29.477051, −66.889616 (objetivo real) | Coordenada donde se ancla el cubo y el modelo. Admite punto o coma decimal |
+| `radio` | `0` (sin perímetro) | Metros. Si es > 0, el cubo y el modelo sólo se muestran dentro del radio |
+| `h` | `3` | Altura en metros del centro del modelo sobre el suelo |
+| `acc` | `30` | Precisión mínima en metros que acepta AR.js. Si el HUD muestra muchos «descartados», probar `50` |
+| `proj` | (local en metros) | `mercator` = proyección original de AR.js, sólo para comparar |
+
+- Si un parámetro es inválido, el HUD muestra `❌ URL: …` y no se ancla nada.
+
+### 10.4 HUD de diagnóstico (franja superior)
+- **Proyección** activa y **objetivo** (indica si viene de la URL o por defecto).
+- **GPS:**
+  - Precisión: verde ≤ 10 m, amarillo ≤ `acc`, rojo si es peor.
+  - Edad del último fix.
+  - Fixes recibidos, aceptados y descartados por precisión.
+- **Distancia real** (Haversine), **rumbo geodésico** al objetivo y **último salto GPS** aceptado.
+- **Orientación:**
+  - Evento del sensor (`deviceorientationabsolute` = absoluta / `deviceorientation` = relativa).
+  - Ángulos α β γ y, en iPhone, la brújula iOS.
+- **Rumbo de la cámara** en la escena, rumbo al cubo y **guía**: «gira X° a la derecha/izquierda» o «✅ el cubo está al frente».
+- **Coherencia interna:** compara la geometría de la escena (vector ancla − cámara) con la que predice el GPS, calculada **de forma independiente** con Haversine y rumbo geodésico.
+  - **OK** si Δdist < 0,5 m (o 0,5 %) y Δrumbo < 2°.
+  - **ERROR DE IMPLEMENTACIÓN** en caso contrario.
+- **Log inferior:**
+  - `📍 Fix aceptado #n · salto X m · cámara x,z`
+  - `📌 Ancla geolocalizada`
+  - `⚠️ GPS: precisión ±X m > acc` (fix descartado)
+  - `⚠️ GPS error`
+  - `❌ ERROR JS` (error de implementación)
+
+### 10.5 Cómo distinguir errores del GPS, de la brújula y de implementación
+
+| Lo que se observa en el teléfono | Coherencia interna | Clasificación |
+|---|---|---|
+| `❌ ERROR JS` en el log, o el HUD congelado | — | **Implementación** |
+| Coherencia **ERROR** | ERROR | **Implementación**: la escena no refleja lo que dice el GPS |
+| El cubo «acompaña» al caminar mientras llegan `📍 Fix aceptado` con saltos | OK | No debería ocurrir con coherencia OK; si ocurre, **implementación** |
+| El cubo «acompaña» al caminar y **no** llegan fixes aceptados (sólo «descartados» o nada) | OK | **GPS**: precisión peor que `acc` o movimiento menor de 5 m. Probar `acc=50` o esperar mejor señal |
+| El cubo salta de golpe justo cuando aparece `📍 Fix aceptado · salto X m` estando quieto | OK | **GPS** (ruido de posición). Normal hasta ≈ la precisión mostrada |
+| El cubo queda desplazado del punto real en una magnitud parecida a la precisión GPS, y la distancia del HUD no coincide con la real | OK | **GPS** |
+| El cubo queda desplazado lateralmente por un ángulo casi constante, que cambia tras calibrar (gesto en «8») o cerca de metal o autos | OK | **Brújula** (sensor) |
+| El HUD dice «Orientación: (relativa)» o «sin datos» | — | **Sensor o permiso** (navegador o iOS). Pulsar «Activar brújula» en iPhone |
+| «Cámara apunta a X°» difiere más de 15° de la app de brújula del teléfono apuntando igual | OK | **Brújula**: sensor o su lectura por AR.js. Anotar la diferencia y el modelo de teléfono |
+
+- **Regla práctica:** con coherencia **OK** y sin `❌`, el código coloca el cubo exactamente donde dicen el GPS y la brújula. Cualquier desvío físico restante es error de esos sensores.
+
+### 10.6 Pruebas automáticas (🧪 emulación; **no** sustituyen la prueba en el teléfono)
+- **Entorno:** Chromium headless + Playwright 1.56.1, toques CDP, GPS simulado con precisión configurable y orientación simulada (`deviceorientationabsolute`).
+- **Servidor:** se sirven **los archivos reales del repo**, sin sustituciones.
+- **Resultado: 30/30 PASS.**
+
+| Grupo | Comprobaciones | Resultado |
+|---|---|---|
+| A. Arranque (usuario 20 m al sur) | Ancla tras el primer fix. Modelo centrado. Proyección en metros. **Ancla a 20,000 m al norte** (en metros reales). Coherencia OK (Δ 0,00 m / 0,0°). Pivote = ancla + 3 m. Centro de huesos = pivote (< 5 cm). Mirando al norte, cubo y modelo centrados. Guía «al frente» | ✅ 9/9 |
+| **B. Anclaje al caminar** | Recorrido de 5 tramos: 15 m E → 10 m N → 30 m O → rodear al norte del objetivo → volver. En cada tramo, mirando según el rumbo GPS: deriva del ancla **0 m**, error de la cámara frente al GPS ≤ **0,0001 m**, cubo **centrado en pantalla** (NDC x ≤ 0,0001) y coherencia OK | ✅ 6/6 |
+| C. Errores de GPS | Fix con ±60 m descartado, sin salto y visible en el HUD. Movimiento de 3 m (< 5 m) ignorado | ✅ 3/3 |
+| D. Gestos v78 | Horizontal; vertical ≤ 80°; combinado ≤ 80°; pinza con el 2.º dedo sobre el log (300 → 450); soltar un dedo sin salto; el ancla y el pivote no se mueven; sin errores de implementación | ✅ 7/7 |
+| E. Parámetros URL | `radio=5`: oculto a 20 m y visible a 3 m. `lat`/`lon` de otra ciudad: ancla a 30,0 m al oeste. `lat=abc`: error en el HUD y sin anclaje. `proj=mercator`: 22,999 m = 20 × sec(lat), con coherencia OK | ✅ 5/5 |
+
+- **Regresión v78** (`gestures.test.js` sobre `index.html`): 30/31, idéntico a la entrada #3. La única «falla» son mensajes del entorno de prueba: 404 de favicon, sin acceso a `camera_para.dat`, y el aviso del GPS simulado.
+- **Errores corregidos durante las pruebas:**
+  1. Con `lat`/`lon` inválidas, el evento de AR.js anclaba igualmente con NaN. Ahora se bloquea.
+  2. En el test (no en el código): la orientación suavizada (`smoothingFactor` 0,1) necesita ≈ 2 s para converger tras un giro brusco simulado.
+- **Límites de la emulación:** GPS y brújula perfectos (sin ruido). La prueba demuestra que **la implementación** ancla correctamente, **no** que los sensores del teléfono sean suficientemente precisos. Eso sólo lo mide la prueba real (§9.9).
+
+### 10.7 Procedimiento en el smartphone
+- **URL base:** `https://lgqseiscelularlg-source.github.io/Cloude/poc-geo.html` (GitHub Pages ya sirve esta rama).
+- **Preparación:**
+  1. Elegir un punto físico reconocible a cielo abierto: poste, árbol, esquina o banco.
+  2. En Google Maps, mantener pulsado exactamente ese punto y copiar las coordenadas (6 decimales).
+  3. Armar la URL: `…/poc-geo.html?lat=<LAT>&lon=<LON>`. Ejemplo con el objetivo real: `…/poc-geo.html?lat=-29.477051&lon=-66.889616`.
+  4. Ubicarse a **20–40 m** del punto. Usar Chrome en Android o Safari en iPhone (no Firefox).
+- **Prueba:**
+  1. Abrir la URL. Comprobar «**PoC geo 1 (base v78)**» abajo a la izquierda y «proyección: local en metros» en el HUD. Si no aparece, recargar sin caché.
+  2. Aceptar cámara y ubicación. En iPhone, pulsar «**Activar brújula**».
+  3. **Calibrar la brújula:** mover el teléfono en forma de «8» unos segundos.
+  4. Esperar a que el GPS marque **±10–15 m o mejor** y que el log muestre «📌 Ancla geolocalizada». Comprobar «Coherencia interna: **OK**».
+  5. Seguir la guía «gira X°…» hasta «✅ el cubo está al frente».
+     - **C2:** ¿el cubo rojo y Goku están sobre el punto elegido? Estimar el desvío en grados o metros.
+  6. **C3 (prioridad):** caminar **10–20 m en perpendicular** a la línea hacia el punto, sin dejar de apuntarle.
+     - El cubo debe **quedarse sobre el punto**, no acompañar.
+     - Observar en el log los `📍 Fix aceptado · salto X m`.
+     - Repetir acercándose y alejándose.
+  7. **C4:** girar 360° y volver a apuntar: el cubo debe volver al mismo lugar (±10°).
+  8. **C5:** quedarse quieto 30 s. Anotar los saltos y la precisión mostrada.
+  9. **C6:** probar los gestos (horizontal, vertical, pinza) sobre Goku.
+  10. **C7 y C8:** 5 minutos de uso. Repetir en 3 sesiones e, idealmente, en 2 teléfonos.
+- **Registrar para Nami** en §8 y §10.9:
+  - Teléfono y navegador.
+  - Coordenada usada y distancia inicial.
+  - Precisión GPS típica.
+  - Resultado de C1–C8.
+  - Clasificación de cada desvío según §10.5.
+  - Capturas con el HUD visible.
+
+### 10.8 Reversión y respaldo
+- La v78 sigue intacta en `https://lgqseiscelularlg-source.github.io/Cloude/` y no se modificó.
+- Para retirar la PoC: dejar de usar su URL, o `git revert` de su commit (sin reescribir el historial).
+- **Etiqueta `v78`:** creada localmente sobre `ab62cc7`, pero **no publicada** (el entorno de Robin sólo puede publicar en la rama de trabajo; HTTP 403). Para crearla en GitHub, cualquiera de estas opciones:
+  - **Web:** repositorio → *Releases* → *Draft a new release* → *Choose a tag*: escribir `v78` → *Create new tag* → *Target*: elegir la rama `claude/zealous-ramanujan-j9jf59` o el commit `ab62cc7` → *Publish*. *Ojo: comprobar en «Target» que es el commit `ab62cc7`, no el último de la rama.*
+  - **Terminal:** `git fetch origin && git tag v78 ab62cc7 && git push origin v78`
+
+### 10.9 Resultados en smartphone
+- ⏳ **Pendiente.** Espacio reservado para los resultados del Capitán y la revisión de Nami.

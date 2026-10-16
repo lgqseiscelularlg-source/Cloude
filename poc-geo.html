@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>RealityTour – PoC geolocalizada</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* Solo para la PoC: HUD de diagnóstico (no captura toques) */
+      #hud {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10001;
+        pointer-events: none;
+        font: 11px/1.35 ui-monospace, Menlo, Consolas, monospace;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.55);
+        padding: 6px 8px;
+        white-space: pre-wrap;
+      }
+      #hud .ok { color: #7CFC00; }
+      #hud .warn { color: #FFD700; }
+      #hud .bad { color: #FF6B6B; }
+      #btn-brujula {
+        position: fixed;
+        right: 10px;
+        bottom: 40vh;
+        z-index: 10002;
+        padding: 10px 14px;
+        font-size: 14px;
+        border: none;
+        border-radius: 8px;
+        background: crimson;
+        color: #fff;
+      }
+    </style>
+
+    <!-- Librerías de la PoC (copias exactas en lib/, SHA-256 en BITACORA_RA.md §9.5) -->
+    <script src="lib/aframe-v1.6.0.min.js"></script>
+    <script src="lib/ar-threex-location-only-3.4.8.js"></script>
+    <script src="lib/aframe-ar-3.4.8.js"></script>
+  </head>
+
+  <body>
+    <div id="desktop-warning" class="hidden">
+      <p>Para una mejor experiencia, abre esta página desde un dispositivo móvil.</p>
+      <button
+        onclick="document.getElementById('desktop-warning').style.display='none'"
+      >
+        Continuar igualmente
+      </button>
+    </div>
+
+    <div id="hud">Iniciando PoC geolocalizada…</div>
+    <div id="distancia-display">Distancia: -- m</div>
+    <div id="version-label">PoC geo 1 (base v78)</div>
+
+    <!-- Capa capturadora de gestos (invisible) -->
+    <div id="gesture-layer" aria-hidden="true"></div>
+
+    <!-- D16: sin "embedded" (en A-Frame 1.6 deja la escena con altura 0) -->
+    <a-scene
+      vr-mode-ui="enabled: false"
+      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+      renderer="antialias: true; alpha: true"
+    >
+      <!-- D13: la cámara va ANTES que las entidades geolocalizadas -->
+      <a-camera
+        gps-new-camera="gpsMinDistance: 5; positionMinAccuracy: 30; initialPositionAsOrigin: true"
+        arjs-device-orientation-controls="smoothingFactor: 0.1"
+      ></a-camera>
+
+      <!-- D14: gps-new-entity-place se asigna por script tras el primer fix GPS -->
+      <a-entity id="anchor" position="0 0 0">
+        <!-- Cubo de referencia: 1 m, apoyado en el suelo exactamente sobre la coordenada -->
+        <a-box id="cubo-ref" color="red" position="0 0.5 0" width="1" height="1" depth="1" visible="false"></a-box>
+      </a-entity>
+    </a-scene>
+
+    <!-- --------------------------------------- CONSOLA DE LOG EN PANTALLA CELULAR  -->
+    <div id="log-console"></div>
+    <script>
+      const logBox = document.getElementById('log-console');
+      logBox.style.position = 'fixed';
+      logBox.style.bottom = '0';
+      logBox.style.left = '0';
+      logBox.style.width = '100%';
+      logBox.style.maxHeight = '30vh';
+      logBox.style.overflowY = 'auto';
+      logBox.style.background = 'rgba(0,0,0,0.7)';
+      logBox.style.color = 'lime';
+      logBox.style.fontSize = '12px';
+      logBox.style.zIndex = '10000';
+      logBox.style.pointerEvents = 'none'; // no debe robar toques a los gestos
+
+      const MAX_LOG_LINES = 30;
+      const oldLog = console.log;
+      console.log = function (...args) {
+        oldLog.apply(console, args);
+        const line = document.createElement('div');
+        line.textContent = args.join(' ');
+        logBox.appendChild(line);
+        while (logBox.childNodes.length > MAX_LOG_LINES) logBox.removeChild(logBox.firstChild);
+        logBox.scrollTop = logBox.scrollHeight;
+      };
+      // Errores de implementación visibles en el teléfono
+      window.addEventListener('error', (e) => console.log('❌ ERROR JS: ' + e.message));
+      window.addEventListener('unhandledrejection', (e) => console.log('❌ ERROR JS (promesa): ' + e.reason));
+    </script>
+    <!-- Fin del log -->
+
+    <script src="poc-geo.js"></script>
+  </body>
+</html>
