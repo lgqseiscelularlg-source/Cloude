@@ -2,7 +2,7 @@
 
 > Responsable técnica: **Robin** (IA de ingeniería). Supervisión: **Nami** (IA supervisora). Dirección: **Ale / Capitán**.
 > Rama de trabajo: `claude/zealous-ramanujan-j9jf59` (no fusionada a `main`).
-> Última actualización: 2026-10-16. Entrada #9: **prueba real #2 (PoC geo 2, Chrome iOS)**: cubo y Goku visibles, norte corregido y gestos OK. Persisten desplazamientos al caminar y movimientos espontáneos estando detenido. Análisis: saltos GPS discretos por `gpsMinDistance=5` (D20) y error de norte proporcional a la inclinación lateral (**D19, error de implementación de D18**). Propuesta de PoC geo 3 y prueba diagnóstica #3 **pendientes de autorización**. Ver **§10.11**.
+> Última actualización: 2026-10-16. Entrada #10: **PoC geo 3** implementada: M1 (corrige D19), M2 (filtro lento del norte, desactivado), M3 (Kalman GPS experimental, desactivado), M5 (registro diagnóstico) y M6 (aislamiento). `modo=geo2` reproduce la PoC geo 2. 🧪 Estabilidad 16/17 (S5 parcial), Android 30/30, iOS 30/30, v78 sin cambios. **Pendiente: revisión de Nami y prueba diagnóstica corta en el iPhone.** Ver **§10.12**.
 > *Corrección de registro:* la prueba real #1 (entrada #7) se hizo con **Google Chrome para iOS**, no con Safari.
 > Estado v78: gestos **🟢 verificados en dispositivo** por el Capitán (entrada #4).
 
@@ -273,7 +273,9 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
 | P11 | Migrar la aplicación principal | ⏳ **No autorizada**. Sólo tras la validación real de la PoC (§9.9) |
 | P12 | Aplicar en `poc-geo.js` la corrección de orientación iOS (D17 + D18, §10.9) | ✅ Autorizada e implementada como **PoC geo 2** (entrada #8). ⏳ Revisión de Nami y prueba en el iPhone |
 | P13 | Orden de prueba en el iPhone | ✅ Primero **Chrome iOS**; comparar con Safari si hace falta |
-| P14 | PoC geo 3: corrección de D19, filtro de norte lento, registro diagnóstico y filtro GPS opcional (§10.11) | ⏳ Pendiente de autorización |
+| P14 | PoC geo 3: corrección de D19, filtro de norte lento, registro diagnóstico y filtro GPS opcional (§10.11) | ✅ Autorizada (M1, M2, M3, M5, M6; **sin M4**) e implementada (entrada #10). ⏳ Revisión de Nami y prueba corta |
+| P15 | M4: detección de movimiento con el acelerómetro | ⏸️ No autorizada todavía: primero comprobar si hace falta (S5 y prueba de campo) |
+| P16 | Activar por defecto M2 (`tauNorte`) y/o M3 (`filtro=kalman`) | ⏳ Según los registros de la prueba diagnóstica |
 
 ---
 
@@ -290,6 +292,7 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
 | 7 | 2026-10-16 | Capitán / Robin | Prueba real + diagnóstico | iPhone con **Chrome iOS** (corregido en la entrada #8; se había anotado Safari) en el árbol (−29.477168, −66.889542) a 17,8 m, en retrato vertical. GPS ±5–9 m, ancla y modelo OK, coherencia OK, permiso concedido, pero `Cámara apunta a —°` y ni el cubo ni Goku visibles. Diagnóstico: D17 (AR.js pide el permiso sin gesto y nunca conecta; la cámara queda mirando al suelo) y D18 (iOS: `alpha` relativo; `gps-new-camera` ignora `webkitCompassHeading`). Escala de Goku descartada. Corrección propuesta (+41 líneas en `poc-geo.js`) probada en una copia aislada. | `BITACORA_RA.md` (sin cambios funcionales) | 🟢 GPS/anclaje en iPhone. 🔴 Orientación en iOS. 🧪 Corrección: iOS 8/8, Android 30/30. ⏳ Pendiente de autorización (P12) |
 | 8 | 2026-10-16 | Robin | Implementación PoC geo 2 | Autorizada por el Capitán y Nami. D17: reintento de `connect()` cuando llegan datos del sensor, más un respaldo que entrega el evento al control de AR.js si sigue sin recibirlo. D18: `alphaOffset` desde `webkitCompassHeading` con el teléfono en vertical; `norte=0` lo desactiva. HUD: líneas «Control AR.js» y «Norte iOS». Etiqueta «PoC geo 2». Corregido el registro de la prueba #1 (**Chrome iOS**, no Safari). Comprobado que el regex de AR.js para Safari no reconoce Chrome iOS. | `poc-geo.js`, `poc-geo.html`, `BITACORA_RA.md` | 🧪 iOS emulado (Safari + Chrome iOS, 5 escenarios) 30/30. Android 30/30. v78 30/31 (la única falla es del entorno). v78, gestos, GPS y `lib/` sin cambios. 🔵 **Pendiente: revisión de Nami y prueba en el iPhone** |
 | 9 | 2026-10-16 | Capitán / Nami / Robin | Prueba real #2 + análisis | Chrome iOS: control AR.js con datos, norte corregido, rumbo numérico, **cubo y Goku visibles**, gestos OK, coherencia OK, GPS ±3–5 m, distancias 11,6 y 22,1 m, saltos aceptados de 5,2 a 10,7 m. Desplazamientos al caminar, movimientos espontáneos también **estando detenido**, Goku sobre un auto, entra y sale del encuadre. Análisis: D19 (error de implementación: norte ignora γ; 🧪 error = γ), D20 (saltos GPS de ≥ 5 m), D21 (filtro de norte casi sin suavizado), D22 (encuadre de 42° y retardo de suavizado). Propuestas M1–M6. Sin cambios de código. | `BITACORA_RA.md` | 🟢 D17 y D18 resueltos en el dispositivo (visibilidad y norte). 🔴 Estabilidad. ⏳ P14 |
+| 10 | 2026-10-16 | Robin | Implementación PoC geo 3 | Autorizada con alcance controlado. M1: offset de norte = rumbo(α, β, γ) − brújula, con la convención de `THREEx.DeviceOrientationControls`. M2: filtro complementario τ (`tauNorte`, por defecto 0 = desactivado). M3: Kalman 2D experimental (`filtro=kalman`, `q=1`), interpolación de la cámara ≈ 0,7 s y re-aplicación del último fix si no llegan nuevos. M5: muestreo a 10 Hz con descomposición GPS / giro / brújula / residuo, marcas ⚡ y 🧭 y botón «Copiar registro». M6: `gps=fijo`, `norte=0`, `suave`. `modo=geo2` reproduce la PoC geo 2. Sin M4. | `poc-geo.js`, `poc-geo.html`, `BITACORA_RA.md` | 🧪 Estabilidad 16/17 (S5 parcial: retraso de 4,7 m al caminar y 1,3 m residual tras 8 s quieto). Android 30/30, iOS 30/30, v78 30/31 (la única falla es del entorno). v78, gestos y `lib/` sin cambios. 🔵 **Pendiente en el iPhone** |
 
 <!-- Nuevas entradas: añadir filas al final; no borrar historial. -->
 
@@ -901,3 +904,66 @@ Todas son **reversibles por parámetro URL** (los valores por defecto se indican
 - T2: deriva ≤ 3° en 1 min.
 - T5: como máximo 1 salto visible > 5° en 2 min.
 - T6: el modelo vuelve a quedar sobre el árbol en ±10° tras volver al punto de partida.
+
+
+### 10.12 PoC geo 3 (entrada #10) — 🧪 verificada en emulación · 🔵 pendiente de revisión de Nami y de prueba corta en el iPhone
+
+#### Alcance implementado (sólo `poc-geo.js` y la etiqueta en `poc-geo.html`)
+
+| # | Qué | Por defecto | Parámetro URL |
+|---|---|---|---|
+| **M1** | Corrección de norte con la orientación completa: `offset = rumbo(α, β, γ) − brújula`. El rumbo se calcula con la **misma convención que AR.js** (`Euler(β, α, −γ, 'YXZ') · q(−90° X) · q(−orientación de pantalla Z)`). Sólo se actualiza si la cámara apunta al horizonte (componente horizontal ≥ 0,5) | **Activa** | `modo=geo2` vuelve a la fórmula anterior (sólo α) |
+| **M2** | Filtro lento (complementario) del norte: el giroscopio manda a corto plazo y la brújula corrige con constante τ. Convergencia rápida los 2 primeros s. Rechazo de desvíos > 25° (re-convergencia si persisten 5 s). Exige precisión de brújula < 25° y no actualiza durante giros > 90°/s | **Desactivado** (`tauNorte=0` = filtro rápido de geo 2) | `tauNorte=4` |
+| **M3** | Filtro GPS **experimental**: Kalman 2D en metros, ponderado por la precisión de cada fix. Descarta un fix atípico aislado (χ² > 13,8) y re-sincroniza si se repiten. Re-aplica el último fix si no llegan nuevos en 1,5 s. AR.js deja de mover la cámara (precisión mínima ≈ 0) y la PoC la desplaza **suavemente** (≈ 0,7 s) hacia la estimación. El ancla **no se mueve nunca** | **Desactivado** | `filtro=kalman`, `q=1` (m²/s) |
+| **M5** | Registro diagnóstico a 10 Hz (últimos 180 s). Descompone el movimiento del modelo en pantalla como **Δmodelo = ΔGPS + Δgiro del teléfono + Δcorrección de brújula + residuo**. Marcas en el log: `⚡ GPS: la cámara se movió X m → modelo Δ Y°` y `🧭 Brújula: la corrección de norte cambió X° en 1 s → el modelo se movió X° sin girar el teléfono`. HUD: «Movimiento 3 s: GPS · giro · brújula · residuo». Botón **«📋 Copiar registro»**: resumen, eventos y CSV a 2 Hz; si el portapapeles falla, muestra el texto para copiarlo a mano | **Activo** | `diag=0` lo oculta |
+| **M6** | Aislamiento: `gps=fijo` congela la posición de la cámara tras el primer fix; `norte=0` desactiva la corrección de brújula (ya existía); `suave` ajusta el `smoothingFactor` de AR.js | `suave=0.1` | `gps=fijo`, `norte=0`, `suave=0.1…1` |
+| — | **`modo=geo2`**: reproduce la PoC geo 2 (fórmula sólo α, filtro rápido, GPS de AR.js con mínimo de 5 m, `suave` 0,1). Ignora M1, M2, M3 y `gps=fijo`. El registro M5 sigue activo, pero es pasivo | — | `modo=geo2` |
+| — | Etiqueta en pantalla: «PoC geo 3 (base v78)» o «PoC geo 3 (modo geo2) (base v78)». El HUD añade la línea «Modo: …» con la configuración activa | — | — |
+| ✗ | **M4 (acelerómetro): NO implementado**, como se pidió | — | — |
+
+- **Sin cambios:** v78 (`git diff ab62cc7` vacío), bloque de gestos (`diff` idéntico), `lib/` (AR.js y A-Frame sin tocar), ancla, centrado del modelo y perímetro.
+
+#### Estado de verificación
+
+| Afirmación | Código | Emulación (🧪) | Smartphone |
+|---|---|---|---|
+| D19 existía en geo 2 (error = γ) | ✅ | ✅ (S1 `modo=geo2`: 8° → 8°, 15° → 15°) | ⏳ Prueba corta, tramo B |
+| M1 elimina D19 | ✅ | ✅ (S1: desvío 0,00° con γ = 0/8/15/−15°) | ⏳ Tramo A |
+| `webkitCompassHeading` con el teléfono vertical apunta en la dirección de la cámara | — | ✗ no emulable | ⏳ Comparar con la app Brújula |
+| M2 rechaza una perturbación de 30° y atenúa el ruido | ✅ | ✅ (S2: 30° → 0°; ruido RMS 1,18° → 0,29°) | ⏳ |
+| `gps=fijo` congela la cámara | ✅ | ✅ (S3: 0 m frente a 8 m) | ⏳ Tramo C |
+| M3 elimina los saltos con el usuario detenido | ✅ | ✅ (S4: 0 saltos > 0,5 m/100 ms frente a 6–8 saltos de hasta 6–8,5 m) | ⏳ |
+| M3 no elimina la **deriva lenta** (sesgo) del GPS | ✅ (por diseño) | ✅ (S4: el Kalman sigue la deriva correlada) | ⏳ |
+| M3 al caminar: retraso y convergencia | ✅ | ⚠️ **Parcial** (S5: retraso de 4,7 m al final de 14 m a 1,4 m/s; 1,3 m residual tras 8 s quieto, frente al criterio de ≤ 1 m). Es el compromiso esperado **sin M4** | ⏳ |
+| El registro separa correctamente GPS / giro / brújula | ✅ | ✅ (S6: salto de 8 m → «GPS −21,8°» = atan(8/20), giro 0, brújula 0, residuo 0; brújula +20° → «brújula −20°», giro 0, residuo 0) | ⏳ |
+| «Copiar registro» funciona | ✅ | ✅ en Chromium (portapapeles) | ⏳ En Chrome iOS; si falla aparece la caja de texto |
+| `suave` y `modo=geo2` | ✅ | ✅ (S7, S8) | — |
+| Regresiones | — | ✅ Android 30/30 · iOS (Safari + Chrome iOS) 30/30 · v78 30/31 (la única falla es del entorno) | — |
+
+- **Límites de la emulación:** no reproduce el comportamiento real de la brújula del iPhone (vertical, magnetismo, calibración) ni la cadencia real de fixes de iOS (en S4 y S5 se simularon fixes cada 0,3 s y cada 1 s).
+
+#### Riesgos pendientes
+- **R-M3a:** sin M4, el Kalman tiene que elegir entre retraso al caminar (`q` bajo) y temblor detenido (`q` alto). Con `q=1`, unos 4–5 m de retraso a paso normal. Por eso va **desactivado** por defecto.
+- **R-M3b:** si Chrome iOS entrega fixes con poca frecuencia, la re-aplicación del último fix tarda unos segundos en converger.
+- **R-M2:** tras una perturbación magnética real y persistente (> 5 s), el norte tarda hasta τ (4 s) en re-converger.
+- **R-M5:** el texto copiado ocupa unos 3–40 KB según la duración. Si el chat lo rechaza, enviar sólo la parte de eventos (líneas `#`).
+
+#### Prueba diagnóstica corta (antes de la salida al patio) — Chrome iOS, ~5 minutos
+**Objetivo:** confirmar D19 en el dispositivo y separar los movimientos de GPS de los de orientación. Nami preparará los enlaces exactos.
+- **Base:** `https://lgqseiscelularlg-source.github.io/Cloude/poc-geo.html?lat=<LAT>&lon=<LON>`
+- **Preparación:** comprobar la etiqueta «**PoC geo 3**». Conceder permisos («Allow» / «Activar brújula»). Calibrar con un «8», alejarse ≥ 3 m de autos y ubicarse a 10–20 m del objetivo con el cubo a la vista.
+
+| Tramo | Agregar a la URL | Qué hacer (≈ 1 min) | Qué esperamos ver |
+|---|---|---|---|
+| **A** (M1) | — | Apuntar al objetivo y quedarse quieto 20 s. Luego **inclinar el teléfono de lado ±15°** sin girarlo, varias veces | Con la inclinación, «Movimiento 3 s» muestra giro y brújula ≈ 0° y el modelo **no** se desplaza |
+| **B** (D19 antes) | `&modo=geo2` | Igual que A | Con la inclinación, el modelo **sí** se desplaza ≈ la inclinación (confirma D19 en el dispositivo) |
+| **C** (aislar orientación) | `&gps=fijo` | Teléfono quieto, apoyado si es posible, 40 s | Sin marcas ⚡. Cualquier movimiento queda como 🧭 brújula o giro |
+| D (opcional) | `&tauNorte=4` | Igual que C | Menos marcas 🧭 que en C |
+| E (opcional) | `&filtro=kalman` | Quieto 40 s | Sin saltos ⚡ grandes. Movimiento suave y lento como mucho |
+
+- **Al final de cada tramo:** pulsar «📋 Copiar registro», pegarlo en un mensaje y enviar una captura con el HUD.
+- **Clasificación con el registro:**
+  - **GPS** = marcas ⚡ y columna `dGPS`.
+  - **Brújula** = marcas 🧭 y columna `dBrujula` (con el teléfono quieto).
+  - **Giro** = columna `dGiro` (movimiento real de la mano).
+  - **Implementación** = **residuo** sostenido > 2–3°, coherencia ERROR, o desplazamiento en el tramo A.
