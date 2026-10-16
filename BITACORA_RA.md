@@ -2,7 +2,7 @@
 
 > Responsable técnica: **Robin** (IA de ingeniería). Supervisión: **Nami** (IA supervisora). Dirección: **Ale / Capitán**.
 > Rama de trabajo: `claude/zealous-ramanujan-j9jf59` (no fusionada a `main`).
-> Última actualización: 2026-10-16. Entrada #6: **PoC geolocalizada implementada** (`poc-geo.html`), 🧪 30/30 en emulación, **pendiente de validar en smartphone**. Ver **§10**. La v78 no se modificó.
+> Última actualización: 2026-10-16. Entrada #7: **primera prueba real de la PoC (iPhone/Safari)**: GPS y anclaje OK, pero ni el cubo ni Goku visibles. Causa confirmada: AR.js no conecta la orientación en iOS (D17); además, el norte en iOS es relativo (D18). Corrección propuesta y verificada en emulación, **pendiente de autorización**. Ver **§10.9**.
 > Estado v78: gestos **🟢 verificados en dispositivo** por el Capitán (entrada #4).
 
 ## Convenciones de esta bitácora
@@ -270,6 +270,7 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
 | P9 | Implementar la prueba de concepto de §9.8 (archivos nuevos, sin tocar v78) | ✅ Autorizada e implementada (entrada #6). Pendiente de validar en smartphone |
 | P10 | Coordenada de prueba para la PoC | ✅ Resuelto: configurable por URL (`?lat=&lon=`); por defecto, el objetivo real |
 | P11 | Migrar la aplicación principal | ⏳ **No autorizada**. Sólo tras la validación real de la PoC (§9.9) |
+| P12 | Aplicar en `poc-geo.js` la corrección de orientación iOS (D17 + D18, §10.9) | ⏳ Pendiente de autorización |
 
 ---
 
@@ -283,6 +284,7 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
 | 4 | 2026-10-16 | Capitán / Nami | Prueba en dispositivo | v78 en smartphone real: rotación horizontal, vertical, zoom y rotación sin quedar boca abajo **confirmados**. Observaciones O1 (desaparece al girar) y O2 (acompaña al caminar). Contexto: el perímetro de 15 m fue una decisión deliberada. | — | 🟢 Gestos v78 verificados en dispositivo. Pasos 7, 9 y 10 de §6.2 sin reportar |
 | 5 | 2026-10-16 | Robin | Análisis + experimento aislado | Evaluación de la geolocalización real (§9): fuentes oficiales de AR.js (npm `@ar-js-org/ar.js` 3.4.8, documentación y ejemplos oficiales) y LocAR.js. Experimento en el scratchpad (**fuera del repo**) con A-Frame 1.6.0 + AR.js 3.4.8 + `script.js` v78: 16/16 en emulación tras 5 ajustes necesarios (D12–D16). Recomendación: PoC aislada. Sin cambios funcionales en el repo. | `BITACORA_RA.md` | 🧪 Emulación. 🔵 **Nada verificado en dispositivo** |
 | 6 | 2026-10-16 | Robin | Implementación PoC | Autorizada por el Capitán y Nami. `poc-geo.html` + `poc-geo.js` + `lib/` (A-Frame 1.6.0, AR.js 3.4.8). Ajustes D12–D16. Proyección local en metros. Parámetros URL. Cubo de referencia. HUD con autodiagnóstico de coherencia. Gestos v78 copiados textualmente. Corregido durante las pruebas: con `lat`/`lon` inválidas el ancla recibía NaN. Etiqueta `v78` creada localmente; su publicación fue rechazada por el entorno (403). | `poc-geo.html`, `poc-geo.js`, `lib/*`, `BITACORA_RA.md` | 🧪 PoC 30/30; regresión v78 30/31 (la única falla es del entorno); v78 sin cambios respecto de `ab62cc7`. 🔵 **Pendiente en smartphone** |
+| 7 | 2026-10-16 | Capitán / Robin | Prueba real + diagnóstico | iPhone/Safari en el árbol (−29.477168, −66.889542) a 17,8 m, en retrato vertical. GPS ±5–9 m, ancla y modelo OK, coherencia OK, permiso concedido, pero `Cámara apunta a —°` y ni el cubo ni Goku visibles. Diagnóstico: D17 (AR.js pide el permiso sin gesto y nunca conecta; la cámara queda mirando al suelo) y D18 (iOS: `alpha` relativo; `gps-new-camera` ignora `webkitCompassHeading`). Escala de Goku descartada. Corrección propuesta (+41 líneas en `poc-geo.js`) probada en una copia aislada. | `BITACORA_RA.md` (sin cambios funcionales) | 🟢 GPS/anclaje en iPhone. 🔴 Orientación en iOS. 🧪 Corrección: iOS 8/8, Android 30/30. ⏳ Pendiente de autorización (P12) |
 
 <!-- Nuevas entradas: añadir filas al final; no borrar historial. -->
 
@@ -595,4 +597,91 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
   - **Terminal:** `git fetch origin && git tag v78 ab62cc7 && git push origin v78`
 
 ### 10.9 Resultados en smartphone
-- ⏳ **Pendiente.** Espacio reservado para los resultados del Capitán y la revisión de Nami.
+
+#### Prueba real #1 — iPhone, Safari (entrada #7)
+- **Coordenada (árbol):** `lat=-29.477168`, `lon=-66.889542`. El usuario abrió la PoC junto al árbol, se alejó ≈ 17,8 m según el HUD y apuntó hacia él **sosteniendo el iPhone en vertical (retrato), como para una foto normal**.
+
+| Observación | Resultado | Lectura |
+|---|---|---|
+| GPS | ±5 a ±9 m | 🟢 Bueno: dentro de `acc` = 30 |
+| `📌 Ancla geolocalizada` en el log | Sí | 🟢 |
+| Modelo creado y centrado (log) | Sí | 🟢 |
+| Coherencia interna | **OK** | 🟢 La escena coincide con el GPS: el GPS y la geometría funcionan |
+| Permiso de orientación | `granted` | 🟢 Concedido (botón «Activar brújula») |
+| HUD «Orientación» | `deviceorientation (relativa)` | Esperado en iOS: Safari no tiene `deviceorientationabsolute` |
+| HUD «Cámara apunta a» | **`—°` en todas las capturas** | 🔴 La cámara 3D no está orientada en horizontal |
+| Cubo rojo y Goku | **Nunca aparecieron** | 🔴 |
+
+#### Diagnóstico (entrada #7) — ✅ CONFIRMADO en el código y 🧪 reproducido en emulación de iOS
+- **D17 – Causa raíz: AR.js 3.4.8 nunca conecta sus listeners de orientación en iOS.**
+  - `arjs-device-orientation-controls` (lo añade `gps-new-camera` en móviles) crea `THREEx.DeviceOrientationControls`, cuyo `connect()` se ejecuta **al cargar la página**.
+  - En iOS, `connect()` llama a `DeviceOrientationEvent.requestPermission()` **sin gesto del usuario**, e iOS lo rechaza (`NotAllowedError`).
+  - Código de `lib/ar-threex-location-only-3.4.8.js`: `requestPermission().then(t => { "granted"===t && addEventListener(...) }).catch(console.error)`. Los listeners **sólo** se registran si el permiso se concede en ese instante.
+  - Después, el permiso sí se concede, pero ninguno de los tres pedidos con gesto reconecta los controles de AR.js:
+    - el diálogo propio de A-Frame 1.6, `device-orientation-permission-ui`;
+    - el `touchend` de `_setupSafariOrientationPermissions` de AR.js;
+    - nuestro botón «Activar brújula».
+  - **Nuestro HUD sí recibe los eventos** (por eso muestra `deviceorientation`), pero **la cámara 3D no**.
+- **Por qué la cámara mira al suelo aunque el teléfono esté en retrato:**
+  - Sin eventos, el objeto `deviceOrientation` del control queda en `{}`, y `update()` usa α=β=γ=0. Eso equivale a un teléfono **acostado boca arriba**.
+  - Con la corrección de pantalla (−90° en X), la cámara apunta a **(0, −1, 0), directo al suelo**, sea cual sea la postura real del teléfono.
+  - El vector horizontal de la cámara mide 0 < 0,2, así que `rumboCamara()` devuelve `null` → `—°`. *(La observación de Nami es correcta: el `null` es un síntoma, no la causa.)*
+  - El cubo y Goku están a 17,8 m en horizontal: fuera de un encuadre que mira al suelo.
+- **Reproducción 🧪:** emulación de Safari iOS con `requestPermission` que rechaza sin gesto, pulsando el diálogo de A-Frame y «Activar brújula» y simulando retrato vertical (β=90°). Con la PoC actual sale lo mismo que en el iPhone:
+  - Error `THREE.DeviceOrientationControls: Unable to use DeviceOrientation API: NotAllowedError`.
+  - Control de AR.js sin datos; cámara `forward = (0, −1, 0)`; HUD `--°`; cubo fuera de pantalla (NDC y = 19).
+  - Coherencia interna OK.
+- **Por qué no lo detectaron las pruebas anteriores:** Chromium/Android no tiene `requestPermission`, así que AR.js conecta los listeners directamente. El fallo es **exclusivo de iOS**.
+- **D18 – Problema secundario en iOS (afecta a la dirección, no a la visibilidad):**
+  - El control de `gps-new-camera` usa **sólo `alpha`**. En Safari, `alpha` de `deviceorientation` es **relativo** (referencia arbitraria).
+  - En `lib/aframe-ar-3.4.8.js`, `webkitCompassHeading` sólo lo usa el componente **clásico** `gps-camera`, no el de `gps-new-camera`.
+  - Corregido sólo D17, en iPhone el cubo se vería pero **en una dirección arbitraria** (norte incorrecto). Es el riesgo G3 de §9.6, ahora confirmado en el código.
+- **Hipótesis descartadas:**
+  - **Escala de Goku (300):** mide ≈ 4,8 m. A 17,8 m ocupa ≈ 15° de los 80° de campo vertical, perfectamente visible. Además, el **cubo de 1 m tampoco se ve**: no es un problema de escala.
+  - **GPS o anclaje:** coherencia OK y precisión de ±5–9 m.
+  - **Renderizado:** el mismo render funciona en emulación en cuanto la cámara se orienta.
+  - **Visibilidad o perímetro:** `radio=0` por defecto; el log confirma la creación del modelo.
+
+#### Corrección mínima propuesta — ⏳ pendiente de autorización (sólo `poc-geo.js`, +41 líneas)
+1. **Reconectar la orientación de AR.js tras el permiso (D17).**
+   - Cuando nuestro listener recibe el primer evento de orientación con datos, señal de que el permiso ya está concedido por cualquier vía, se llama una vez a `controles.connect()`.
+   - Ahora `requestPermission()` resuelve `granted` y AR.js registra sus listeners. `addEventListener` ignora duplicados, así que es idempotente en Android.
+   - Se ignoran los eventos vacíos (α=β=γ=null).
+2. **Norte correcto en iOS con `webkitCompassHeading` (D18).**
+   - Con el teléfono en vertical (β entre 60° y 120°) y `webkitCompassAccuracy` < 50, se fija `controles.alphaOffset` para que el rumbo de la cámara coincida con la brújula: `offset = −brújula − alpha`, filtrado con una media circular (factor 0,2) para que no tiemble.
+   - No afecta a Android, donde ese dato no existe.
+   - `?norte=0` lo desactiva, como diagnóstico.
+3. **HUD.**
+   - Nueva línea «Control AR.js: **recibe datos** / **SIN DATOS (cámara sin orientar)**» y la corrección de norte aplicada en grados.
+   - Log: `🧭 Orientación de AR.js reconectada tras el permiso`.
+4. **Etiqueta:** «PoC geo 2» para distinguir la versión en el teléfono.
+- Sin cambios en la v78, los gestos, el GPS, el anclaje ni las librerías (no se modifica AR.js: la corrección se hace desde fuera).
+
+#### Verificación de la corrección (🧪, en una copia aislada fuera del repo)
+
+| Prueba | PoC actual | Con la corrección |
+|---|---|---|
+| Emulación iOS: control de AR.js recibe datos | ❌ | ✅ |
+| Emulación iOS: cámara en horizontal con retrato vertical | ❌ (0, −1, 0) | ✅ (0, 0, −1) |
+| Emulación iOS: HUD con rumbo numérico | ❌ `--°` | ✅ `0°` |
+| Emulación iOS: cubo centrado al apuntar al norte real (alpha relativo desfasado 40°, brújula iOS 0°) | ❌ fuera de pantalla | ✅ NDC (0, −0,07) |
+| Batería completa Android de la PoC (§10.6) | 30/30 | **30/30** (sin regresión) |
+
+- **Límite:** la emulación no reproduce el comportamiento exacto de `webkitCompassHeading` con el teléfono en vertical ni el ruido del magnetómetro.
+- 🟡 **Hipótesis pendiente:** que con el iPhone vertical iOS reporte el rumbo hacia donde apunta la cámara trasera. Se verifica con la prueba diagnóstica de abajo.
+
+#### Prueba diagnóstica propuesta en el iPhone (tras autorizar la corrección)
+1. Abrir `…/poc-geo.html?lat=-29.477168&lon=-66.889542` y comprobar la etiqueta «**PoC geo 2**». Conceder permisos y pulsar «Allow» o «Activar brújula».
+2. **Comprobación de D17:**
+   - El HUD debe decir «Control AR.js: **recibe datos**» (verde).
+   - El log debe mostrar `🧭 Orientación de AR.js reconectada…`.
+   - «Cámara apunta a» debe mostrar **un número**, no `—°`.
+   - Si sigue «SIN DATOS» → la corrección no funcionó (implementación).
+3. **Comprobación de D18:**
+   - Abrir la app **Brújula** del iPhone y anotar el rumbo apuntando a un objeto lejano.
+   - Volver a la PoC y apuntar al mismo objeto. «Cámara apunta a» debe coincidir con la app Brújula en **±15°**.
+   - Si difiere en un ángulo constante → anotarlo: es el sesgo de `webkitCompassHeading` en vertical o la declinación magnética.
+4. **Visibilidad:** seguir la guía «gira X°» hasta «✅ el cubo está al frente». El cubo rojo y Goku deben verse.
+5. **Anclaje:** ¿están sobre el árbol? Caminar 10 m en perpendicular: deben quedarse sobre el árbol (C3).
+6. **Comparación opcional:** repetir con `&norte=0`. El cubo debería aparecer desviado un ángulo arbitrario, lo que confirma la necesidad de D18.
+7. Anotar las capturas con el HUD completo en esta sección.
