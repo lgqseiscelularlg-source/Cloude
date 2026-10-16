@@ -1,5 +1,5 @@
 // =============================================================================
-// RealityTour – PoC geolocalizada (AR.js 3.4.8 + A-Frame 1.6.0)
+// RealityTour – PoC geo 2 (AR.js 3.4.8 + A-Frame 1.6.0) · corrección orientación iOS (D17, D18)
 // Basada en script.js v78. El bloque de GESTOS es una copia textual de v78.
 // Parámetros URL: lat, lon, radio (m, 0 = sin perímetro), h (m), acc (m), proj=mercator
 // =============================================================================
@@ -306,20 +306,92 @@ function actualizarPerimetro() {
   }
 }
 
-// Orientación del dispositivo (sólo lectura, para el HUD)
+// -----------------------------------------------------------------------------
+// 🔹 ORIENTACIÓN (PoC geo 2): correcciones D17 y D18 para iOS (Safari y Chrome iOS)
+// -----------------------------------------------------------------------------
+const USAR_BRUJULA_IOS = params.get("norte") !== "0"; // ?norte=0 desactiva D18 (diagnóstico)
+// iOS (Safari, Chrome iOS y demás navegadores WebKit): permiso de orientación explícito
+const ES_IOS = !!(window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === "function");
+diag.orientAR = { reconectado: false, alimentado: 0, ultimoRespaldo: 0 };
+diag.norteIOS = { estado: "sin datos de brújula", offset: null, precision: null };
+
+// Control de orientación de AR.js (THREEx.DeviceOrientationControls de gps-new-camera)
+function controlAR() {
+  const c = camEl.components["arjs-device-orientation-controls"];
+  return c ? c._orientationControls : null;
+}
+function controlRecibeDatos(ctrl) {
+  return !!(ctrl && ctrl.deviceOrientation && ctrl.deviceOrientation.type && ctrl.deviceOrientation.alpha !== null);
+}
+
+// D17: AR.js llama a requestPermission() al cargar, SIN gesto; iOS lo rechaza y
+// AR.js nunca registra sus listeners (en Safari y en Chrome iOS, ambos WebKit).
+// Cuando el permiso ya está concedido (llegan datos), se reintenta connect() una vez.
+// Respaldo: si el control sigue sin datos, se le entrega el MISMO evento que
+// espera (sólo si coincide el tipo), igual que haría su propio listener.
+function asegurarOrientacionAR(e) {
+  const ctrl = controlAR();
+  if (!ctrl) return;
+  if (!diag.orientAR.reconectado) {
+    diag.orientAR.reconectado = true;
+    if (!controlRecibeDatos(ctrl)) {
+      ctrl.connect();
+      console.log("🧭 Orientación de AR.js reconectada tras el permiso");
+    }
+  }
+  if (e.type !== ctrl.orientationChangeEventName) return;
+  // Tras terminar el despacho del evento: si el listener propio de AR.js no lo recibió, entregárselo.
+  setTimeout(() => {
+    if (ctrl.deviceOrientation !== e) {
+      ctrl.deviceOrientation = e;
+      diag.orientAR.alimentado++;
+      diag.orientAR.ultimoRespaldo = Date.now();
+    }
+  }, 0);
+}
+
+// D18: en iOS, alpha de 'deviceorientation' es RELATIVO y gps-new-camera no usa
+// webkitCompassHeading. Con el teléfono en vertical (beta 60–120°) el rumbo de la
+// cámara es −(alpha + offset) ⇒ offset = −brújula − alpha (media circular).
+function corregirNorteIOS(e) {
+  const n = diag.norteIOS;
+  if (typeof e.webkitCompassHeading !== "number") { n.estado = "brújula iOS no disponible (norte relativo, sin corregir)"; return; }
+  n.precision = e.webkitCompassAccuracy;
+  if (!USAR_BRUJULA_IOS) { n.estado = "desactivada (norte=0)"; return; }
+  if (!(e.webkitCompassAccuracy >= 0 && e.webkitCompassAccuracy < 50)) {
+    n.estado = "precisión de brújula insuficiente (" + e.webkitCompassAccuracy + "): calibrar con un «8»"; return;
+  }
+  if (e.alpha === null || !(e.beta > 60 && e.beta < 120)) {
+    if (n.offset === null) n.estado = "esperando teléfono en vertical";
+    return;
+  }
+  const ctrl = controlAR();
+  if (!ctrl) return;
+  const objetivo = norm360(-e.webkitCompassHeading - e.alpha);
+  n.offset = n.offset === null ? objetivo : norm360(n.offset + 0.2 * difAng(objetivo, n.offset));
+  ctrl.alphaOffset = rad(n.offset);
+  n.estado = "aplicada";
+}
+
+// Orientación del dispositivo (HUD + correcciones)
 function leerOrientacion(nombre) {
   return (e) => {
+    if (e.alpha === null && e.beta === null && e.gamma === null) return; // evento vacío (sin sensor)
     const o = diag.orient;
     o.evento = nombre;
     o.alpha = e.alpha; o.beta = e.beta; o.gamma = e.gamma;
     o.absoluto = e.absolute;
     o.brujulaIOS = typeof e.webkitCompassHeading === "number" ? e.webkitCompassHeading : null;
     o.n++;
+    asegurarOrientacionAR(e);
   };
 }
 window.addEventListener("deviceorientationabsolute", leerOrientacion("deviceorientationabsolute"));
 window.addEventListener("deviceorientation", (e) => {
+  if (e.alpha === null && e.beta === null && e.gamma === null) return;
+  corregirNorteIOS(e); // D18: sólo actúa si el evento trae webkitCompassHeading (iOS)
   if (diag.orient.evento !== "deviceorientationabsolute") leerOrientacion("deviceorientation")(e);
+  else asegurarOrientacionAR(e);
 });
 
 // iOS: el permiso de orientación exige un toque explícito.
@@ -428,7 +500,7 @@ function rumboCamara() {
 
 function actualizarHUD() {
   const L = [];
-  L.push("PoC geo 1 · proyección: " + diag.proyeccion);
+  L.push("PoC geo 2 · proyección: " + diag.proyeccion);
   if (erroresParam.length) L.push(span("bad", "❌ URL: " + erroresParam.join(", ")));
   L.push("Objetivo " + (targetDesdeUrl ? "(URL)" : "(por defecto)") + ": " + target.lat.toFixed(6) + ", " + target.lon.toFixed(6));
 
@@ -452,6 +524,16 @@ function actualizarHUD() {
       (o.brujulaIOS !== null ? " · brújula iOS " + f(o.brujulaIOS, 0) + "°" : ""));
   } else {
     L.push(span("warn", "Orientación: sin datos del sensor"));
+  }
+  const ctrl = controlAR();
+  L.push("Control AR.js: " + (controlRecibeDatos(ctrl) ? span("ok", "recibe datos") : span("bad", "SIN DATOS (cámara sin orientar)")) +
+    (Date.now() - (diag.orientAR.ultimoRespaldo || 0) < 1500 ? span("warn", " · vía respaldo") : ""));
+  if (ES_IOS || o.evento === "deviceorientation" || diag.norteIOS.offset !== null) {
+    const n = diag.norteIOS;
+    const off = n.offset === null ? null : (n.offset > 180 ? n.offset - 360 : n.offset);
+    L.push("Norte iOS: " + (n.estado === "aplicada" ? span("ok", "corregido") : span("warn", n.estado)) +
+      (off !== null ? " · corrección " + f(off, 0) + "°" : "") +
+      (n.precision !== null && n.precision !== undefined ? " · precisión brújula " + f(n.precision, 0) + "°" : ""));
   }
 
   const rc = rumboCamara();
