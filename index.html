@@ -25,7 +25,7 @@
     </div>
 
     <div id="distancia-display">Distancia: -- m</div>
-    <div id="version-label">Versión 77</div>
+    <div id="version-label">Versión 78</div>
 
     <!-- Capa capturadora de gestos (invisible) -->
     <div id="gesture-layer" aria-hidden="true"></div>
@@ -65,11 +65,17 @@
         logBox.style.color = 'lime';
         logBox.style.fontSize = '12px';
         logBox.style.zIndex = '10000';
-      
+        logBox.style.pointerEvents = 'none'; // no debe robar toques a los gestos
+
+        const MAX_LOG_LINES = 30;
         const oldLog = console.log;
         console.log = function (...args) {
           oldLog.apply(console, args);
-          logBox.innerHTML += args.join(' ') + '<br>';
+          const line = document.createElement('div');
+          line.textContent = args.join(' ');
+          logBox.appendChild(line);
+          while (logBox.childNodes.length > MAX_LOG_LINES) logBox.removeChild(logBox.firstChild);
+          logBox.scrollTop = logBox.scrollHeight;
         };
       </script>
 

@@ -1,43 +1,5 @@
-// === CONTROL DE GESTOS (rotación + zoom) ===
-AFRAME.registerComponent("gesture-controls", {
-  schema: { rotFactor: { default: 0.35 }, minScale: { default: 50 }, maxScale: { default: 1500 } },
-  init: function () {
-    this.model = this.el;
-    this.startX = 0;
-    this.startScale = this.model.object3D.scale.x;
-    this.baseRot = this.model.object3D.rotation.y;
-    this.pinchStart = 0;
-
-    const dist = (a, b) => Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
-
-    window.addEventListener("touchstart", (e) => {
-      if (e.touches.length === 1) {
-        this.startX = e.touches[0].pageX;
-        this.baseRot = this.model.object3D.rotation.y;
-      } else if (e.touches.length === 2) {
-        this.pinchStart = dist(e.touches[0], e.touches[1]);
-        this.startScale = this.model.object3D.scale.x;
-      }
-    });
-
-    window.addEventListener("touchmove", (e) => {
-      if (e.touches.length === 1) {
-        const dx = e.touches[0].pageX - this.startX;
-        this.model.object3D.rotation.y = this.baseRot - dx * this.data.rotFactor * 0.01745; // grados→rad
-      } else if (e.touches.length === 2) {
-        const pinchNow = dist(e.touches[0], e.touches[1]);
-        const factor = pinchNow / this.pinchStart;
-        let newScale = this.startScale * factor;
-        newScale = Math.min(this.data.maxScale, Math.max(this.data.minScale, newScale));
-        this.model.object3D.scale.set(newScale, newScale, newScale);
-      }
-      e.preventDefault();
-    }, { passive: false });
-  }
-});
-
 // ----------------------------------------------------------------------------
-// 📍 GEOPOSICIÓN + CLON DEL MODELO INTERACTIVO
+// 📍 GEOPOSICIÓN + MODELO INTERACTIVO
 // -----------------------------------------------------------------------------
 if (!/Mobi|Android/i.test(navigator.userAgent)) {
   document.getElementById("desktop-warning").classList.remove("hidden");
@@ -47,21 +9,33 @@ const radio = 15; // metros
 const target = { lat: -29.477051, lon: -66.889616 };
 const anchor = document.getElementById("anchor");
 
-let modelClone = null; // el modelo 3D interactivo
+let modelClone = null; // pivote del modelo 3D interactivo (hijo del ancla)
 
 //-----------------------------------------------------------------------------
 
-// ====== GESTOS EN CAPA SUPERIOR (rotar con 1 dedo, zoom con 2) ======
+// ====== GESTOS EN CAPA SUPERIOR (1 dedo: rotar horizontal/vertical, 2 dedos: zoom) ======
+// Los gestos actúan SOLO sobre el pivote (rotación y escala visual).
+// El ancla geolocalizada nunca se rota, escala ni desplaza.
 const gestureLayer = document.getElementById('gesture-layer');
 
-let currentModel = null;        // referencia al clon activo (se setea al crear)
-let startX = 0;
-let baseRotY = 0;               // en radianes
+let currentModel = null;        // pivote activo (se setea al crear)
+let gestureMode = null;         // 'rotate' | 'pinch' | null
+let lastX = 0;
+let lastY = 0;
 let pinchStartDist = 0;
 let baseScale = 300;            // tu escala inicial
-const ROT_SENS = 0.005;         // sensibilidad rotación (sube/baja si quieres)
+const ROT_SENS = 0.005;         // sensibilidad rotación (rad por píxel)
 const SCALE_MIN = 50;
 const SCALE_MAX = 1500;
+const MIN_PINCH_DIST = 10;      // px: por debajo, la pinza no tiene referencia fiable
+const MAX_TILT = (80 * Math.PI) / 180; // inclinación máxima respecto a la vertical
+
+const _q = new THREE.Quaternion();
+const _qCand = new THREE.Quaternion();
+const _qParentInv = new THREE.Quaternion();
+const _up = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _modelUp = new THREE.Vector3();
 
 function distTouches(t0, t1) {
   const dx = t0.pageX - t1.pageX;
@@ -69,33 +43,112 @@ function distTouches(t0, t1) {
   return Math.hypot(dx, dy);
 }
 
-gestureLayer.addEventListener('touchstart', (e) => {
-  if (!currentModel) return;
+// Reinicia la referencia del gesto cada vez que cambia el número de dedos,
+// para que no haya saltos al pasar de pinza a rotación (o al revés).
+function syncGesture(e) {
   if (e.touches.length === 1) {
-    startX = e.touches[0].pageX;
-    baseRotY = currentModel.object3D.rotation.y;
+    gestureMode = 'rotate';
+    lastX = e.touches[0].pageX;
+    lastY = e.touches[0].pageY;
   } else if (e.touches.length === 2) {
+    gestureMode = 'pinch';
     pinchStartDist = distTouches(e.touches[0], e.touches[1]);
     baseScale = currentModel.object3D.scale.x;
+  } else {
+    gestureMode = null;
   }
+}
+
+// Calcula, en el espacio LOCAL del padre del pivote (el ancla):
+//  - _up: la vertical del mundo
+//  - _right: la "derecha" de la cámara proyectada al plano horizontal
+// Devuelve null si no hay un eje horizontal fiable.
+function computeAxes(obj) {
+  obj.parent.getWorldQuaternion(_qParentInv).conjugate();
+  _up.set(0, 1, 0).applyQuaternion(_qParentInv);
+  obj.el.sceneEl.camera.getWorldQuaternion(_q);
+  _right.set(1, 0, 0).applyQuaternion(_q).applyQuaternion(_qParentInv);
+  _right.addScaledVector(_up, -_right.dot(_up));
+  return _right.lengthSq() > 1e-6 ? _right.normalize() : null;
+}
+
+// Inclinación = ángulo entre el "arriba" del modelo y la vertical del mundo.
+// La rotación horizontal (sobre _up) no la cambia, así que el límite se
+// mantiene al combinar ambos gestos.
+function tiltOf(q) {
+  _modelUp.set(0, 1, 0).applyQuaternion(q);
+  return Math.acos(Math.min(1, Math.max(-1, _modelUp.dot(_up))));
+}
+
+function applyTilt(obj, axis, angle) {
+  const before = tiltOf(obj.quaternion);
+  _q.setFromAxisAngle(axis, angle);
+  _qCand.copy(obj.quaternion).premultiply(_q);
+  const after = tiltOf(_qCand);
+  if (after <= MAX_TILT || after <= before) {
+    obj.quaternion.copy(_qCand);
+    return;
+  }
+  // Se pasaría del límite: aplicar la mayor fracción del giro que lo respete.
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 12; i++) {
+    const mid = (lo + hi) / 2;
+    _q.setFromAxisAngle(axis, angle * mid);
+    _qCand.copy(obj.quaternion).premultiply(_q);
+    if (tiltOf(_qCand) <= MAX_TILT) lo = mid;
+    else hi = mid;
+  }
+  _q.setFromAxisAngle(axis, angle * lo);
+  obj.quaternion.premultiply(_q);
+}
+
+gestureLayer.addEventListener('touchstart', (e) => {
+  if (!currentModel) return;
+  syncGesture(e);
   e.preventDefault();
   e.stopPropagation();
 }, { passive: false });
 
 gestureLayer.addEventListener('touchmove', (e) => {
   if (!currentModel) return;
-  if (e.touches.length === 1) {
-    const dx = e.touches[0].pageX - startX;
-    currentModel.object3D.rotation.y = baseRotY - dx * ROT_SENS; // rotar Y
-  } else if (e.touches.length === 2) {
+  const obj = currentModel.object3D;
+  if (gestureMode === 'rotate' && e.touches.length === 1) {
+    const t = e.touches[0];
+    const dx = t.pageX - lastX;
+    const dy = t.pageY - lastY;
+    lastX = t.pageX;
+    lastY = t.pageY;
+    const right = computeAxes(obj);
+    _q.setFromAxisAngle(_up, -dx * ROT_SENS);  // horizontal: sobre la vertical
+    obj.quaternion.premultiply(_q);
+    if (right) applyTilt(obj, right, dy * ROT_SENS); // vertical: hacia/desde la cámara
+    obj.quaternion.normalize();
+  } else if (gestureMode === 'pinch' && e.touches.length === 2) {
     const now = distTouches(e.touches[0], e.touches[1]);
-    let s = baseScale * (now / pinchStartDist);
-    s = Math.min(SCALE_MAX, Math.max(SCALE_MIN, s));
-    currentModel.object3D.scale.set(s, s, s);
+    if (pinchStartDist < MIN_PINCH_DIST) {
+      // Dedos demasiado juntos al empezar: tomar referencia ahora.
+      pinchStartDist = now;
+      baseScale = obj.scale.x;
+    } else {
+      let s = baseScale * (now / pinchStartDist);
+      s = Math.min(SCALE_MAX, Math.max(SCALE_MIN, s));
+      obj.scale.set(s, s, s);
+    }
   }
   e.preventDefault();
   e.stopPropagation();
 }, { passive: false });
+
+const onTouchEnd = (e) => {
+  if (!currentModel) return;
+  syncGesture(e);
+};
+gestureLayer.addEventListener('touchend', onTouchEnd);
+gestureLayer.addEventListener('touchcancel', onTouchEnd);
+
+// iOS Safari: evita el zoom nativo de la página durante la pinza.
+document.addEventListener('gesturestart', (e) => e.preventDefault());
 
 //-----------------------------------------------------------------------------
 // Observa la ubicación
@@ -110,7 +163,7 @@ navigator.geolocation.watchPosition(
     const display = document.getElementById("distancia-display");
     if (display) display.innerText = "Distancia: " + distancia.toFixed(1) + " m";
 
-    // Entró en el radio → clonar modelo
+    // Entró en el radio → crear modelo
     if (distancia <= radio && !modelClone) {
       crearModeloInteractivo(anchor);
     }
@@ -119,6 +172,7 @@ navigator.geolocation.watchPosition(
     if (distancia > radio && modelClone) {
       modelClone.parentNode.removeChild(modelClone);
       modelClone = null;
+      currentModel = null;
     }
   },
   (err) => console.error("Error de geolocalización:", err),
@@ -129,26 +183,45 @@ navigator.geolocation.watchPosition(
 // 🔹 FUNCIONES AUXILIARES
 // -----------------------------------------------------------------------------
 function crearModeloInteractivo(anchor) {
-  const scene = document.querySelector("a-scene");
+  // Pivote de interacción, hijo del ancla: recibe rotación y escala de los gestos.
+  const pivot = document.createElement("a-entity");
+  pivot.setAttribute("position", "0 2 0"); // 2 m sobre el ancla
+  pivot.setAttribute("scale", "300 300 300");
 
-  // Crear el clon (modelo libre, no GPS)
   const model = document.createElement("a-entity");
   model.setAttribute("gltf-model", "./models/goku.glb");
-  model.setAttribute("scale", "300 300 300");
-  model.setAttribute("rotation", "0 0 0");
-  scene.appendChild(model);
+  model.addEventListener("model-loaded", () => centrarModeloEnPivote(pivot, model));
+  pivot.appendChild(model);
+  anchor.appendChild(pivot);
 
-  // Posicionarlo donde está el anchor actualmente
-  const anchorWorldPos = new THREE.Vector3();
-  anchor.object3D.updateMatrixWorld(true);
-  anchor.object3D.getWorldPosition(anchorWorldPos);
-
-  model.object3D.position.copy(anchorWorldPos);
-  model.object3D.position.y += 2; // 2 m sobre el suelo
-
-  modelClone = model;
-  currentModel = model;           // 👈 clave: los gestos actúan sobre este
+  modelClone = pivot;
+  currentModel = pivot;           // 👈 clave: los gestos actúan sobre este
   console.log("✅ Modelo 3D interactivo creado");
+}
+
+// Lleva el centro visual del GLB al origen del pivote (para que rote y escale
+// sobre su centro) sin mover el modelo en pantalla.
+// El centro se mide en coordenadas MUNDIALES y se convierte a las coordenadas
+// LOCALES de cada padre antes de usarlo como desplazamiento.
+function centrarModeloEnPivote(pivot, model) {
+  const mesh = model.getObject3D("mesh");
+  if (!mesh) return;
+  pivot.object3D.updateWorldMatrix(true, true);
+  const centroMundo = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
+  if (![centroMundo.x, centroMundo.y, centroMundo.z].every(Number.isFinite)) return;
+
+  // 1) Desplazar el mesh en el espacio local de su padre (la entidad del modelo).
+  const centroLocalModelo = model.object3D.worldToLocal(centroMundo.clone());
+  mesh.position.sub(centroLocalModelo);
+
+  // 2) Mover el pivote al antiguo centro, expresado en el espacio local del ancla.
+  const centroLocalAncla = pivot.object3D.parent.worldToLocal(centroMundo.clone());
+  pivot.setAttribute("position", {
+    x: centroLocalAncla.x,
+    y: centroLocalAncla.y,
+    z: centroLocalAncla.z,
+  });
+  console.log("Modelo centrado en su pivote");
 }
 
 
@@ -164,10 +237,3 @@ function calcularDistancia(lat1, lon1, lat2, lon2) {
     Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-
-
-
-
-
-
-
