@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>RealityTour – RA geolocalizada</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      #btn-brujula {
+        position: fixed;
+        right: 10px;
+        bottom: 40vh;
+        z-index: 10002;
+        padding: 10px 14px;
+        font-size: 14px;
+        border: none;
+        border-radius: 8px;
+        background: crimson;
+        color: #fff;
+      }
+    </style>
+
+    <!-- Librerías (copias exactas en lib/, SHA-256 en BITACORA_RA.md §9.5) -->
+    <script src="lib/aframe-v1.6.0.min.js"></script>
+    <script src="lib/ar-threex-location-only-3.4.8.js"></script>
+    <script src="lib/aframe-ar-3.4.8.js"></script>
+  </head>
+
+  <body>
+    <div id="desktop-warning" class="hidden">
+      <p>Para una mejor experiencia, abre esta página desde un dispositivo móvil.</p>
+      <button
+        onclick="document.getElementById('desktop-warning').style.display='none'"
+      >
+        Continuar igualmente
+      </button>
+    </div>
+
+    <div id="distancia-display">Distancia: -- m</div>
+    <div id="version-label">RA geo 1.0</div>
+
+    <!-- Capa capturadora de gestos (invisible) -->
+    <div id="gesture-layer" aria-hidden="true"></div>
+
+    <!-- Sin "embedded" (D16). La cámara va ANTES que las anclas (D13); las anclas
+         (una por lugar) las crea ra-geo.js y se geolocalizan tras el primer fix (D14). -->
+    <a-scene
+      vr-mode-ui="enabled: false"
+      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+      renderer="antialias: true; alpha: true"
+    >
+      <a-camera
+        gps-new-camera="gpsMinDistance: 1.5; positionMinAccuracy: 20; initialPositionAsOrigin: true"
+        arjs-device-orientation-controls="smoothingFactor: 0.1"
+      ></a-camera>
+    </a-scene>
+
+    <script src="ra-geo.js"></script>
+  </body>
+</html>

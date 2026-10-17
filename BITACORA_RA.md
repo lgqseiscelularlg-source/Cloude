@@ -2,7 +2,7 @@
 
 > Responsable técnica: **Robin** (IA de ingeniería). Supervisión: **Nami** (IA supervisora). Dirección: **Ale / Capitán**.
 > Rama de trabajo: `claude/zealous-ramanujan-j9jf59` (no fusionada a `main`).
-> Última actualización: 2026-10-16. Entrada #10: **PoC geo 3** implementada: M1 (corrige D19), M2 (filtro lento del norte, desactivado), M3 (Kalman GPS experimental, desactivado), M5 (registro diagnóstico) y M6 (aislamiento). `modo=geo2` reproduce la PoC geo 2. 🧪 Estabilidad 16/17 (S5 parcial), Android 30/30, iOS 30/30, v78 sin cambios. **Pendiente: revisión de Nami y prueba diagnóstica corta en el iPhone.** Ver **§10.12**.
+> Última actualización: 2026-10-17. Entrada #11 (**cierre**): módulo definitivo **RA geo 1.0** (`ra-geo.html` + `ra-geo.js` + diagnóstico opcional `ra-geo-diag.js`), preparado para 2–3 modelos. 🧪 25/25. Recomendación: **LISTO PARA INTEGRAR**, condicionado a aprobar la prueba de aceptación §11.6. Ver **§11**.
 > *Corrección de registro:* la prueba real #1 (entrada #7) se hizo con **Google Chrome para iOS**, no con Safari.
 > Estado v78: gestos **🟢 verificados en dispositivo** por el Capitán (entrada #4).
 
@@ -275,7 +275,9 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
 | P13 | Orden de prueba en el iPhone | ✅ Primero **Chrome iOS**; comparar con Safari si hace falta |
 | P14 | PoC geo 3: corrección de D19, filtro de norte lento, registro diagnóstico y filtro GPS opcional (§10.11) | ✅ Autorizada (M1, M2, M3, M5, M6; **sin M4**) e implementada (entrada #10). ⏳ Revisión de Nami y prueba corta |
 | P15 | M4: detección de movimiento con el acelerómetro | ⏸️ No autorizada todavía: primero comprobar si hace falta (S5 y prueba de campo) |
-| P16 | Activar por defecto M2 (`tauNorte`) y/o M3 (`filtro=kalman`) | ⏳ Según los registros de la prueba diagnóstica |
+| P16 | Activar por defecto M2 (`tauNorte`) y/o M3 (`filtro=kalman`) | ✅ Decidido (entrada #11): **ninguno** en el módulo definitivo. M2 es innecesario (la deriva de orientación medida fue 0,7°/60 s) y M3 se descarta porque su retraso hace que el modelo «acompañe» al usuario |
+| P17 | Aprobar la prueba de aceptación §11.6 (caminando, GPS activo) | ⏳ Pendiente (Capitán) |
+| P18 | Integrar el módulo en la página principal | ⏳ **No autorizado todavía**; sólo tras aprobar P17 |
 
 ---
 
@@ -293,6 +295,8 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
 | 8 | 2026-10-16 | Robin | Implementación PoC geo 2 | Autorizada por el Capitán y Nami. D17: reintento de `connect()` cuando llegan datos del sensor, más un respaldo que entrega el evento al control de AR.js si sigue sin recibirlo. D18: `alphaOffset` desde `webkitCompassHeading` con el teléfono en vertical; `norte=0` lo desactiva. HUD: líneas «Control AR.js» y «Norte iOS». Etiqueta «PoC geo 2». Corregido el registro de la prueba #1 (**Chrome iOS**, no Safari). Comprobado que el regex de AR.js para Safari no reconoce Chrome iOS. | `poc-geo.js`, `poc-geo.html`, `BITACORA_RA.md` | 🧪 iOS emulado (Safari + Chrome iOS, 5 escenarios) 30/30. Android 30/30. v78 30/31 (la única falla es del entorno). v78, gestos, GPS y `lib/` sin cambios. 🔵 **Pendiente: revisión de Nami y prueba en el iPhone** |
 | 9 | 2026-10-16 | Capitán / Nami / Robin | Prueba real #2 + análisis | Chrome iOS: control AR.js con datos, norte corregido, rumbo numérico, **cubo y Goku visibles**, gestos OK, coherencia OK, GPS ±3–5 m, distancias 11,6 y 22,1 m, saltos aceptados de 5,2 a 10,7 m. Desplazamientos al caminar, movimientos espontáneos también **estando detenido**, Goku sobre un auto, entra y sale del encuadre. Análisis: D19 (error de implementación: norte ignora γ; 🧪 error = γ), D20 (saltos GPS de ≥ 5 m), D21 (filtro de norte casi sin suavizado), D22 (encuadre de 42° y retardo de suavizado). Propuestas M1–M6. Sin cambios de código. | `BITACORA_RA.md` | 🟢 D17 y D18 resueltos en el dispositivo (visibilidad y norte). 🔴 Estabilidad. ⏳ P14 |
 | 10 | 2026-10-16 | Robin | Implementación PoC geo 3 | Autorizada con alcance controlado. M1: offset de norte = rumbo(α, β, γ) − brújula, con la convención de `THREEx.DeviceOrientationControls`. M2: filtro complementario τ (`tauNorte`, por defecto 0 = desactivado). M3: Kalman 2D experimental (`filtro=kalman`, `q=1`), interpolación de la cámara ≈ 0,7 s y re-aplicación del último fix si no llegan nuevos. M5: muestreo a 10 Hz con descomposición GPS / giro / brújula / residuo, marcas ⚡ y 🧭 y botón «Copiar registro». M6: `gps=fijo`, `norte=0`, `suave`. `modo=geo2` reproduce la PoC geo 2. Sin M4. | `poc-geo.js`, `poc-geo.html`, `BITACORA_RA.md` | 🧪 Estabilidad 16/17 (S5 parcial: retraso de 4,7 m al caminar y 1,3 m residual tras 8 s quieto). Android 30/30, iOS 30/30, v78 30/31 (la única falla es del entorno). v78, gestos y `lib/` sin cambios. 🔵 **Pendiente en el iPhone** |
+| 11 | 2026-10-16 | Capitán | Prueba real #3 (diagnóstica) | iPhone, Chrome iOS, vertical e inmóvil, `gps=fijo`: Goku visualmente quieto; movimiento total en 60 s −0,7°, GPS 0,0°; rotación táctil y zoom OK | — | 🟢 **Orientación estable en el dispositivo** (M1 validado en la práctica) |
+| 12 | 2026-10-17 | Robin | Cierre: módulo RA geo 1.0 | Módulo definitivo en archivos nuevos. GPS: AR.js con `gpsMinDistance` 1,5 m y `positionMinAccuracy` 20 m; **deslizamiento** de la cámara (τ 0,8 s) en vez de saltos; **retención de saltos > 8 m** hasta confirmar (fix siguiente, fix crudo cercano o 2 s sin contradicción). Orientación: D17 + D18 + M1 (filtro rápido). Modelos: varios lugares vía `window.RAGEO_CONFIG`, gestos sobre el modelo más cercano al centro. Diagnóstico separado (`ra-geo-diag.js`, sólo con `?diag=1`). Sin M2, M3 ni M4. | `ra-geo.html`, `ra-geo.js`, `ra-geo-diag.js`, `BITACORA_RA.md` | 🧪 Módulo 25/25 · PoC 30/30 · v78 30/31 (la única falla es del entorno). v78, PoC y `lib/` sin cambios. ⏳ Prueba de aceptación |
 
 <!-- Nuevas entradas: añadir filas al final; no borrar historial. -->
 
@@ -967,3 +971,158 @@ Todas son **reversibles por parámetro URL** (los valores por defecto se indican
   - **Brújula** = marcas 🧭 y columna `dBrujula` (con el teléfono quieto).
   - **Giro** = columna `dGiro` (movimiento real de la mano).
   - **Implementación** = **residuo** sostenido > 2–3°, coherencia ERROR, o desplazamiento en el tramo A.
+
+
+---
+
+## 11. CIERRE DEL MÓDULO RA — RA geo 1.0 (entrada #12)
+
+### 11.1 Diagnóstico final: ¿el modelo conserva una posición geográfica fija con GPS activo?
+**Sí, en la implementación.** Evidencias:
+- **Código:** las anclas sólo reciben `gps-new-entity-place` una vez, tras el primer fix, y nada vuelve a moverlas. Los gestos y los filtros actúan sobre el pivote o sobre la cámara, nunca sobre el ancla.
+- **Emulación:** en todas las baterías (PoC y módulo), la deriva del ancla fue **0 m** con la cámara recorriendo hasta 30 m. La coherencia interna (escena frente a GPS calculado aparte) dio siempre OK.
+- **Dispositivo:** coherencia OK en las pruebas #1, #2 y #3.
+
+**Separación de errores (cerrada):**
+
+| Fuente | Estado | Evidencia |
+|---|---|---|
+| **Orientación** (giro y brújula) | 🟢 **Resuelta** | D17, D18 y M1 aplicados. En el iPhone, inmóvil y con `gps=fijo`: **−0,7° en 60 s** con GPS 0,0° (prueba #3) |
+| **Implementación** | 🟢 Sin defectos conocidos | D19 corregido (M1). Coherencia OK. Residuo 0 en emulación |
+| **Posicionamiento GPS** | 🟡 Era la **única causa restante** del movimiento al caminar | D20: con `gpsMinDistance` 5 la cámara saltaba ≥ 5 m (5,2–10,7 m observados), lo que a 11,6 m equivale a 24–43° |
+
+### 11.2 Solución aplicada (la más simple justificada)
+Tres reglas sobre la **posición de la cámara**; el ancla no se toca:
+1. **Umbral de 1,5 m** (`gpsMinDistance`, propio de AR.js) en lugar de 5 m. La cámara sigue al usuario sin el escalón de 5 m, que causaba saltos con el usuario quieto y retraso al caminar.
+2. **Deslizamiento:** cada nueva posición se alcanza con una transición exponencial de τ = 0,8 s, en vez de un salto instantáneo. El modelo nunca «teletransporta».
+3. **Retención de picos:** un salto > 8 m (típico pico del GPS, como el de 10,7 m observado) se retiene hasta confirmarlo, por cualquiera de estas vías:
+   - el fix siguiente cae a ≤ 4 m de él;
+   - un fix crudo cercano lo confirma (el usuario quedó quieto allí);
+   - pasan 2 s sin ningún fix que lo contradiga.
+
+   Si el fix siguiente lo contradice, el pico se descarta.
+4. **Sin cambios:** precisión mínima de 20 m, proyección local en metros, `initialPositionAsOrigin`.
+
+**Descartado por complejidad o efecto contrario:**
+- **Kalman (M3):** su retraso hace que el modelo acompañe al usuario.
+- **Filtro lento del norte (M2):** innecesario, la orientación ya es estable.
+- **Acelerómetro (M4):** innecesario con esta solución.
+
+**Resultado esperado:**
+- Detenido: el ruido GPS < 1,5 m ya no mueve nada; los cambios mayores se ven como desplazamientos suaves de pocos grados, no como saltos.
+- Caminando: retraso ≈ 1 m (🧪 0,9 m a 1,4 m/s), así que el modelo **no acompaña** al usuario.
+
+### 11.3 Archivos del módulo definitivo (nuevos; v78 y PoC intactas)
+
+| Archivo | Contenido |
+|---|---|
+| `ra-geo.html` | Escena mínima: librerías de `lib/`, aviso «Continuar igualmente», capa de gestos, cámara con `gps-new-camera` y `arjs-device-orientation-controls`. Sin HUD ni log |
+| `ra-geo.js` | Configuración de lugares, anclas, GPS con deslizamiento y retención, orientación (D17, D18 + M1), modelos (D12, D15), selección del modelo para los gestos, gestos v78 (**copia textual**, verificada con `diff`) y API `window.RAGeo` |
+| `ra-geo-diag.js` | **Sólo con `?diag=1`**: HUD, log en pantalla, cubos rojos de referencia, coherencia por lugar, descomposición del movimiento (GPS / giro / brújula / residuo) y «📋 Copiar registro». Sólo lee `window.RAGeo`; el módulo no depende de él |
+
+- La **PoC** (`poc-geo.html` / `poc-geo.js`, PoC geo 3) queda como laboratorio de diagnóstico avanzado y no forma parte del módulo.
+
+### 11.4 Arquitectura para 2–3 modelos (preparada, sin funciones extra)
+- **Configuración** declarada por la página antes de cargar `ra-geo.js`:
+  ```js
+  window.RAGEO_CONFIG = { lugares: [
+    { id: "goku",   lat: -29.477168, lon: -66.889542, modelo: "./models/goku.glb",   escala: 300, altura: 3 },
+    { id: "otro",   lat: -29.47xxxx, lon: -66.88xxxx, modelo: "./models/otro.glb",   escala: 1,   altura: 0 },
+  ] };
+  ```
+  Sin configuración se usa Goku en el objetivo original. `?lat=&lon=` reemplaza las coordenadas del primer lugar (para pruebas).
+- **Cada lugar** tiene su propia ancla geolocalizada y su propio pivote con rotación y escala **independientes**.
+- **Gestos:** en cada `touchstart` se elige el modelo **más cercano al centro de la pantalla** (el que el usuario está mirando). Con un solo lugar, siempre es ese.
+- **Proyección:** centrada en el primer lugar. Válida para lugares a pocos km (error < 0,1 m por km).
+- **Perímetro opcional:** `radio` (por defecto 0 = sin perímetro), por compatibilidad con la idea original. No es necesario.
+- 🧪 Probado con 2 lugares (R9): cada uno quedó en su coordenada, y los gestos actuaron sólo sobre el modelo mirado (norte → A, este → B).
+- **No implementado (innecesario por ahora):** etiquetas o menús por lugar, carga diferida por distancia, sonido y animaciones.
+
+### 11.5 Verificación
+
+| Prueba (🧪 emulación, Chromium + toques CDP + GPS y orientación simulados) | Resultado |
+|---|---|
+| R1 Ancla a 20,0 m en metros reales; modelo sobre la coordenada (+3 m) centrado por huesos; sin diagnóstico por defecto | ✅ |
+| R2 Recorrido de 5 tramos (15 m E, 10 m N, 30 m O, rodear, volver): ancla fija (0 m), cámara en la posición GPS (≤ 0,015 m) y modelo al frente (≤ 0,8°) | ✅ 6/6 |
+| R3 Cambio de 4 m: deslizamiento (≤ 30 % del salto por muestra) y llegada (0,03 m) | ✅ |
+| R4 Pico aislado de 15 m descartado; salto real de 12 m confirmado por el fix siguiente; salto de 10 m confirmado con el usuario quieto | ✅ 3/3 |
+| R5 Ruido GPS correlado (σ 3 m), usuario detenido: sin saltos instantáneos | ✅ |
+| R6 Caminata de 14 m a 1,4 m/s: **retraso 0,9 m**, error 0,02 m 3 s después de detenerse | ✅ |
+| R7 Chrome iOS: AR.js recibe orientación (D17) y el modelo queda centrado con γ = 0/±15° (M1) | ✅ |
+| R8 Gestos v78 (horizontal, vertical ≤ 80°, pinza), con el ancla inmóvil | ✅ 2/2 |
+| R9 Dos lugares: anclaje correcto y gestos sobre el modelo mirado | ✅ 4/4 |
+| R10 `?diag=1`: HUD, coherencia OK, cubos, log y «Copiar registro» | ✅ 3/3 |
+| R11 Coordenadas inválidas: no ancla y lo informa | ✅ |
+| **Total del módulo** | ✅ **25/25** |
+| Regresión PoC geo 3 (Android) | ✅ 30/30 |
+| Regresión v78 | 30/31 (la única falla son mensajes del entorno: favicon, red y GPS simulado) |
+
+- **Nota de método (criterio redefinido durante la prueba, con su justificación):** el criterio inicial de R3 y R5 (≤ 0,6 m por 100 ms) suponía muestras exactas de 100 ms. En emulación llegan cada 130–200 ms, y el deslizamiento recorre ≈ 12 % del salto cada 100 ms. Se adoptó un criterio uniforme: «ninguna muestra recorre más del 30 % del salto». AR.js sin deslizamiento recorre el 100 %. La propiedad verificada (no hay saltos instantáneos) no cambia.
+- **Estado por nivel:**
+
+| Afirmación | Código | Emulación | Dispositivo |
+|---|---|---|---|
+| Orientación estable (iOS) | ✅ | ✅ | 🟢 (prueba #3) |
+| Gestos | ✅ | ✅ | 🟢 (v78, geo 2 y geo 3) |
+| Anclaje geométrico correcto | ✅ | ✅ | 🟢 (coherencia OK) |
+| Sin saltos GPS y sin «acompañar» al caminar (deslizamiento + retención) | ✅ | ✅ | ⏳ **Prueba de aceptación §11.6** |
+| Varios modelos | ✅ | ✅ | ⏳ (cuando haya un segundo GLB) |
+
+### 11.6 Prueba de aceptación única (GPS activo, caminando, teléfono vertical)
+- **URL** (Chrome iOS o Safari): `https://lgqseiscelularlg-source.github.io/Cloude/ra-geo.html?lat=-29.477168&lon=-66.889542&diag=1`
+  - Con `diag=1` se ven el HUD, el cubo rojo de referencia y el botón de registro. Sin `diag=1` es la versión de producción.
+- **Preparación (2 min):**
+  1. Esperar 1–3 min tras la publicación. Abrir la URL y comprobar «**RA geo 1.0**» abajo a la izquierda.
+  2. Ubicarse en un punto **P0 a ~15 m del árbol**, a cielo abierto y a ≥ 3 m de autos.
+  3. Aceptar permisos, pulsar «Allow» / «Activar brújula» y mover el teléfono en forma de «8».
+  4. Esperar a que el HUD muestre **GPS ±10 m o mejor** y «goku ★ … coherencia **OK**». Seguir la guía hasta «✅ al frente».
+- **Recorrido (≈ 3 min), siempre con el teléfono vertical apuntando al árbol:**
+  1. **S1:** captura en P0.
+  2. Caminar **10 m de costado** (perpendicular a la línea al árbol) a paso normal. Detenerse 10 s → **S2**.
+  3. Volver a P0. Detenerse 10 s → **S3**.
+  4. Avanzar **5 m hacia el árbol**. Detenerse 5 s → **S4**. Volver.
+  5. Probar rotación horizontal, rotación vertical y zoom sobre Goku.
+  6. Pulsar «📋 Copiar registro» y enviarlo junto con S1–S4.
+- **Criterios objetivos (se aprueba sólo si se cumplen todos):**
+
+| # | Criterio | Cómo se mide | Umbral |
+|---|---|---|---|
+| A1 | Anclado al lugar | En S1, S3 y S4: separación horizontal entre la base del cubo rojo y el árbol | ≤ 1/3 del ancho de la pantalla (≈ 14°, ≈ 3,7 m a 15 m) |
+| A2 | **No acompaña al usuario** | En S2 (tras 10 m de costado): misma medida | ≤ 1/3 del ancho. Si el modelo acompañara, quedaría ≈ 34° desplazado, fuera de la pantalla |
+| A3 | Sin saltos bruscos | Visual durante todo el recorrido + registro | Ningún salto instantáneo visible. Como máximo 2 líneas `🚫 salto sospechoso`. Nunca «coherencia ERROR» ni `❌` |
+| A4 | Coherencia de distancia | HUD en S4 frente a S1 | La distancia baja entre 3 y 7 m |
+| A5 | Interacción | Gestos sobre Goku | Rotación horizontal, vertical y zoom fluidos |
+
+- **Si falla algún criterio, el registro clasifica la causa:**
+  - **GPS:** líneas `⚡ GPS: la cámara se desliza X m` grandes y componente «GPS» dominante.
+  - **Orientación:** componentes «giro» o «brújula».
+  - **Implementación:** coherencia ERROR o residuo sostenido.
+
+### 11.7 Limitaciones reales y solución práctica
+- **L1 – Precisión absoluta del GPS del teléfono (±3–10 m; peor entre edificios):** ningún código la elimina. Se manifiesta como un **desplazamiento estable** de unos metros entre el modelo y el punto real (Goku junto al árbol en vez de exactamente en él).
+  - **Práctica:** ver los modelos desde **15–40 m**, porque el error angular ≈ error GPS / distancia.
+  - Si en la prueba de aceptación el desplazamiento resulta **constante** en el lugar, la solución práctica posterior es un **ajuste fino por lugar** en la configuración (unos metros al este y al norte, medidos una vez en el sitio). No se implementa ahora.
+- **L2 – Brújula:** error de ±5–15° cerca de metales o sin calibrar. Práctica: calibrar con un «8» y alejarse de autos. La orientación ya demostró ser estable (prueba #3).
+- **L3 – Sin seguimiento visual (SLAM):** la web en iOS no ofrece WebXR para cámara, así que la posición del usuario depende sólo del GPS. Con el deslizamiento, al caminar se percibe un leve «flotar» de pocos grados: es inherente a la AR geolocalizada web.
+- **L4 – Imagen de la cámara estirada (`videoTexture`)** en algunos dispositivos: cosmético, documentado por AR.js.
+
+### 11.8 Riesgos restantes
+
+| # | Riesgo | Mitigación |
+|---|---|---|
+| K1 | La prueba de aceptación no se ha hecho aún con este módulo | §11.6 antes de integrar |
+| K2 | Con GPS degradado (> 20 m) la cámara deja de moverse hasta recuperar precisión | Comportamiento deliberado (mejor quieto que errático). `?acc=30` lo relaja |
+| K3 | Integración en la página principal: la página debe incluir los mismos elementos (`#gesture-layer`, `#distancia-display`, `#version-label`, `#desktop-warning`) y la cámara antes de las anclas | Usar `ra-geo.html` como plantilla |
+| K4 | Varios modelos: rendimiento con 3 GLB grandes en teléfonos modestos | Probar al agregar los GLB reales; optimizar los modelos si hace falta |
+| K5 | Dependencia de AR.js 3.4.8 (D17: pide el permiso sin gesto) | Corregido desde fuera, sin modificar la librería |
+
+### 11.9 Recomendación
+**LISTO PARA INTEGRAR** — condicionado a aprobar la prueba de aceptación §11.6 en el iPhone.
+
+- **Justificación:**
+  - Todos los defectos de implementación identificados están corregidos (D12–D19), y la orientación y los gestos ya están validados en el dispositivo.
+  - El único factor restante, el GPS, se resolvió con la medida más simple posible: umbral de 1,5 m, deslizamiento y retención de picos. En emulación cumple todos los criterios, incluido el que importa: **no acompaña al usuario** (retraso de 0,9 m caminando).
+  - No quedan investigaciones abiertas.
+- **Si la prueba de aceptación falla:**
+  - Por **A2 o A3** → **REQUIERE CORRECCIÓN**, focalizada en los parámetros del GPS (`distanciaMin`, `tauDeslizamiento`, `saltoSospechoso`), con el registro como evidencia.
+  - Por **A1** con un desplazamiento constante → limitación L1, con la solución práctica del ajuste por lugar. No bloquea la integración.
