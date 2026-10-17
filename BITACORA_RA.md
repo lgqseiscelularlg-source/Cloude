@@ -2,7 +2,7 @@
 
 > Responsable técnica: **Robin** (IA de ingeniería). Supervisión: **Nami** (IA supervisora). Dirección: **Ale / Capitán**.
 > Rama de trabajo: `claude/zealous-ramanujan-j9jf59` (no fusionada a `main`).
-> Última actualización: 2026-10-17. Entrada #11 (**cierre**): módulo definitivo **RA geo 1.0** (`ra-geo.html` + `ra-geo.js` + diagnóstico opcional `ra-geo-diag.js`), preparado para 2–3 modelos. 🧪 25/25. Recomendación: **LISTO PARA INTEGRAR**, condicionado a aprobar la prueba de aceptación §11.6. Ver **§11**.
+> Última actualización: 2026-10-17. Entrada #13: `index.html` de esta rama redirige a **`ra-geo.html`** (GitHub Pages publica esta rama desde `/(root)`). Recomendación de §11.9 sin cambios: LISTO PARA INTEGRAR, condicionado a la prueba de aceptación §11.6.
 > *Corrección de registro:* la prueba real #1 (entrada #7) se hizo con **Google Chrome para iOS**, no con Safari.
 > Estado v78: gestos **🟢 verificados en dispositivo** por el Capitán (entrada #4).
 
@@ -297,6 +297,7 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
 | 10 | 2026-10-16 | Robin | Implementación PoC geo 3 | Autorizada con alcance controlado. M1: offset de norte = rumbo(α, β, γ) − brújula, con la convención de `THREEx.DeviceOrientationControls`. M2: filtro complementario τ (`tauNorte`, por defecto 0 = desactivado). M3: Kalman 2D experimental (`filtro=kalman`, `q=1`), interpolación de la cámara ≈ 0,7 s y re-aplicación del último fix si no llegan nuevos. M5: muestreo a 10 Hz con descomposición GPS / giro / brújula / residuo, marcas ⚡ y 🧭 y botón «Copiar registro». M6: `gps=fijo`, `norte=0`, `suave`. `modo=geo2` reproduce la PoC geo 2. Sin M4. | `poc-geo.js`, `poc-geo.html`, `BITACORA_RA.md` | 🧪 Estabilidad 16/17 (S5 parcial: retraso de 4,7 m al caminar y 1,3 m residual tras 8 s quieto). Android 30/30, iOS 30/30, v78 30/31 (la única falla es del entorno). v78, gestos y `lib/` sin cambios. 🔵 **Pendiente en el iPhone** |
 | 11 | 2026-10-16 | Capitán | Prueba real #3 (diagnóstica) | iPhone, Chrome iOS, vertical e inmóvil, `gps=fijo`: Goku visualmente quieto; movimiento total en 60 s −0,7°, GPS 0,0°; rotación táctil y zoom OK | — | 🟢 **Orientación estable en el dispositivo** (M1 validado en la práctica) |
 | 12 | 2026-10-17 | Robin | Cierre: módulo RA geo 1.0 | Módulo definitivo en archivos nuevos. GPS: AR.js con `gpsMinDistance` 1,5 m y `positionMinAccuracy` 20 m; **deslizamiento** de la cámara (τ 0,8 s) en vez de saltos; **retención de saltos > 8 m** hasta confirmar (fix siguiente, fix crudo cercano o 2 s sin contradicción). Orientación: D17 + D18 + M1 (filtro rápido). Modelos: varios lugares vía `window.RAGEO_CONFIG`, gestos sobre el modelo más cercano al centro. Diagnóstico separado (`ra-geo-diag.js`, sólo con `?diag=1`). Sin M2, M3 ni M4. | `ra-geo.html`, `ra-geo.js`, `ra-geo-diag.js`, `BITACORA_RA.md` | 🧪 Módulo 25/25 · PoC 30/30 · v78 30/31 (la única falla es del entorno). v78, PoC y `lib/` sin cambios. ⏳ Prueba de aceptación |
+| 13 | 2026-10-17 | Robin | Publicación | A pedido del Capitán: se trabaja sólo en esta rama, publicada por GitHub Pages desde `/(root)`. `index.html` pasa a ser una **redirección** a `ra-geo.html` que conserva los parámetros (`/?diag=1` → `ra-geo.html?diag=1`), con respaldo `<noscript>` y un enlace. La página AR v78 que contenía sigue en el historial (commit `ab62cc7`, etiqueta local `v78`) y puede restaurarse. Sin cambios en el módulo RA, sus dependencias ni otros archivos; ningún archivo eliminado; sin PR; `main` y `claude/ra-geo-publicacion` sin tocar. | `index.html`, `BITACORA_RA.md` | 🧪 Redirección verificada en local (4 URL, incluidas `?diag=1` y `lat`/`lon`) |
 
 <!-- Nuevas entradas: añadir filas al final; no borrar historial. -->
 
@@ -1126,3 +1127,13 @@ Tres reglas sobre la **posición de la cámara**; el ancla no se toca:
 - **Si la prueba de aceptación falla:**
   - Por **A2 o A3** → **REQUIERE CORRECCIÓN**, focalizada en los parámetros del GPS (`distanciaMin`, `tauDeslizamiento`, `saltoSospechoso`), con el registro como evidencia.
   - Por **A1** con un desplazamiento constante → limitación L1, con la solución práctica del ajuste por lugar. No bloquea la integración.
+
+
+### 11.10 Publicación (entrada #13)
+- **URL principal:** `https://lgqseiscelularlg-source.github.io/Cloude/` abre automáticamente `ra-geo.html`.
+- **Diagnóstico:** `https://lgqseiscelularlg-source.github.io/Cloude/ra-geo.html?diag=1`. También funciona `…/Cloude/?diag=1`, porque la redirección conserva los parámetros.
+- **Prueba de aceptación §11.6:** `https://lgqseiscelularlg-source.github.io/Cloude/ra-geo.html?lat=-29.477168&lon=-66.889542&diag=1`
+- **Versiones anteriores:**
+  - La página AR v78 (antes `index.html`) sigue en el historial: commit `ab62cc7`. Se restaura con `git checkout ab62cc7 -- index.html`.
+  - La PoC sigue en `poc-geo.html`.
+- **Nota:** la rama `claude/ra-geo-publicacion` (creada en la entrada anterior para un posible PR a `main`) queda sin uso y sin cambios. Puede borrarse desde GitHub si se desea.

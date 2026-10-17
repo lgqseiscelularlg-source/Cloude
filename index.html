@@ -2,92 +2,16 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    />
-    <title>RealityTour AR</title>
-    <link rel="stylesheet" href="style.css" />
-
-    <!-- Librerías principales -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://rawcdn.githack.com/jeromeetienne/AR.js/1.7.5/aframe/build/aframe-ar.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RealityTour</title>
+    <!-- La página principal abre el módulo RA geo 1.0.
+         Se conservan los parámetros: index.html?diag=1 → ra-geo.html?diag=1 -->
+    <script>
+      location.replace("ra-geo.html" + location.search + location.hash);
+    </script>
+    <noscript><meta http-equiv="refresh" content="0; url=ra-geo.html" /></noscript>
   </head>
-
   <body>
-    <div id="desktop-warning" class="hidden">
-      <p>Para una mejor experiencia, abre esta página desde un dispositivo móvil.</p>
-      <button
-        onclick="document.getElementById('desktop-warning').style.display='none'"
-      >
-        Continuar igualmente
-      </button>
-    </div>
-
-    <div id="distancia-display">Distancia: -- m</div>
-    <div id="version-label">Versión 78</div>
-
-    <!-- Capa capturadora de gestos (invisible) -->
-    <div id="gesture-layer" aria-hidden="true"></div>
-
-    <a-scene
-      embedded
-      vr-mode-ui="false"
-      arjs="sourceType: webcam; trackingMethod: best; debugUIEnabled: false;"
-    >
-      <!-- Anclaje geolocalizado -->
-      <a-entity
-        id="anchor"
-        gps-entity-place="latitude: -29.477051; longitude: -66.889616"
-        position="0 0 0"
-      >
-      </a-entity>
-
-    <a-camera
-      gps-camera
-      rotation-reader
-      look-controls="touchEnabled: false; magicWindowTrackingEnabled: true; mouseEnabled: false; pointerLockEnabled: false"
-    ></a-camera>
-
-    </a-scene>
-
-     <!-- --------------------------------------- CONSOLA DE LOG EN PANTALLA CELULAR  -->
-          <div id="log-console"></div>
-      <script>
-        const logBox = document.getElementById('log-console');
-        logBox.style.position = 'fixed';
-        logBox.style.bottom = '0';
-        logBox.style.left = '0';
-        logBox.style.width = '100%';
-        logBox.style.maxHeight = '30vh';
-        logBox.style.overflowY = 'auto';
-        logBox.style.background = 'rgba(0,0,0,0.7)';
-        logBox.style.color = 'lime';
-        logBox.style.fontSize = '12px';
-        logBox.style.zIndex = '10000';
-        logBox.style.pointerEvents = 'none'; // no debe robar toques a los gestos
-
-        const MAX_LOG_LINES = 30;
-        const oldLog = console.log;
-        console.log = function (...args) {
-          oldLog.apply(console, args);
-          const line = document.createElement('div');
-          line.textContent = args.join(' ');
-          logBox.appendChild(line);
-          while (logBox.childNodes.length > MAX_LOG_LINES) logBox.removeChild(logBox.firstChild);
-          logBox.scrollTop = logBox.scrollHeight;
-        };
-      </script>
-
-     <!-- Fin del log -->
-
-    <script src="script.js"></script>
+    <p><a href="ra-geo.html">Abrir RealityTour RA</a></p>
   </body>
 </html>
-
-
-
-
-
-
-
