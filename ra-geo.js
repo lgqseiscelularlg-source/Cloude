@@ -1,5 +1,5 @@
 // =============================================================================
-// RealityTour – Módulo RA geolocalizado 1.0 (AR.js 3.4.8 + A-Frame 1.6.0)
+// RealityTour – Módulo RA geolocalizado 1.1 (AR.js 3.4.8 + A-Frame 1.6.0)
 // Origen: PoC geo 3 validada en iPhone (Chrome iOS). Gestos: copia textual de v78.
 //
 // Configuración (para integrar en otra página, definir ANTES de cargar este script):
@@ -8,7 +8,7 @@
 //     ... (2 o 3 lugares, cada uno con su ancla, su modelo y sus gestos)
 //   ] };
 // Parámetros URL: lat, lon (reemplazan las coordenadas del 1.er lugar), acc (m),
-//   radio (m, 0 = sin perímetro), diag=1 (carga ra-geo-diag.js: HUD y registro).
+//   radio (m, 0 = sin perímetro), diag=0 (oculta ra-geo-diag.js: HUD y registro, activo por defecto).
 // =============================================================================
 if (!/Mobi|Android/i.test(navigator.userAgent)) {
   document.getElementById("desktop-warning").classList.remove("hidden");
@@ -23,7 +23,8 @@ function numParam(name, def) {
   return Number.isFinite(n) ? n : NaN;
 }
 const LUGARES_POR_DEFECTO = [
-  { id: "goku", lat: -29.477051, lon: -66.889616, modelo: "./models/goku.glb", escala: 300, altura: 3 },
+  // Árbol de las pruebas de aceptación (URL principal sin parámetros)
+  { id: "goku", lat: -29.477168, lon: -66.889542, modelo: "./models/goku.glb", escala: 300, altura: 3 },
 ];
 const lugares = ((window.RAGEO_CONFIG && window.RAGEO_CONFIG.lugares) || LUGARES_POR_DEFECTO)
   .map((l, i) => ({ id: l.id || "lugar" + (i + 1), lat: l.lat, lon: l.lon, modelo: l.modelo,
@@ -32,13 +33,16 @@ if (params.has("lat")) lugares[0].lat = numParam("lat", lugares[0].lat);
 if (params.has("lon")) lugares[0].lon = numParam("lon", lugares[0].lon);
 
 const AJUSTES = {
-  precisionMin: numParam("acc", 20),  // m: fixes con peor precisión se ignoran
-  distanciaMin: 1.5,                  // m: cambio mínimo de posición para mover la cámara
-  saltoSospechoso: 8,                 // m: un salto mayor se retiene hasta que otro fix lo confirme
-  confirmacion: 4,                    // m: radio en que el fix siguiente confirma el salto
+  precisionMin: numParam("acc", 20),  // m: fixes con peor precisión se ignoran (GPS degradado)
+  precisionInicial: 12,               // m: precisión exigida para fijar el origen
+  tolerancia: 3,                      // m: con el usuario quieto, fluctuaciones menores se ignoran
+  confirmaciones: 2,                  // fixes coherentes fuera de la tolerancia para confirmar movimiento
+  netoMovimiento: 4,                  // m: desplazamiento neto en la ventana que distingue caminar de la deriva
+  ventanaMovimiento: 4000,            // ms: ventana del desplazamiento neto (caminar ≈ 1,1–1,4 m/s ⇒ 4,4–5,6 m)
+  saltoSospechoso: 8,                 // m: un fix más lejos del anterior se descarta como pico
   tauDeslizamiento: 800,              // ms: la cámara se desliza hacia la nueva posición
   radio: numParam("radio", 0),        // m: 0 = sin perímetro
-  diag: params.get("diag") === "1",
+  diag: params.get("diag") !== "0",   // diagnóstico visible por defecto (diag=0 lo oculta)
 };
 const errores = [];
 lugares.forEach((l) => {
@@ -53,7 +57,7 @@ const camEl = document.querySelector("a-camera");
 
 // Estado compartido (lo lee el diagnóstico opcional y las pruebas automáticas)
 const estado = {
-  version: "RA geo 1.0",
+  version: "RA geo 1.1",
   origenFijado: false,
   fixesAceptados: 0,
   ultimoFix: null,          // {lat, lon} posición GPS que representa la cámara
@@ -266,89 +270,150 @@ function calcularDistancia(lat1, lon1, lat2, lon2) {
 }
 
 // =============================================================================
-// GPS: AR.js (gps-new-camera) + deslizamiento de la cámara
-// - AR.js sólo acepta fixes con precisión ≤ precisionMin y cambios ≥ distanciaMin (1,5 m).
-// - En vez de saltar, la cámara se DESLIZA hacia la nueva posición (≈ 0,8 s).
-// - Un salto > 8 m se retiene hasta que el fix siguiente lo confirme (picos del GPS).
-// - Las anclas NUNCA se mueven: sólo cambia la estimación de la posición del usuario.
+// GPS ESTABILIZADO (RA geo 1.1)
+// La posición de la cámara la decide este módulo: AR.js ya no acepta fixes reales
+// (precisión mínima ≈ 0) y sólo aporta el origen del mundo (fakeGps) y la proyección.
+//  1. Origen: 3 fixes seguidos con precisión ≤ 12 m y a ≤ 3 m de su media (si en 30 s
+//     no se logra, se admite precisión ≤ precisionMin). Antes no se muestra el modelo.
+//  2. Tolerancia: con el usuario QUIETO, los fixes a ≤ max(3 m, precisión/2) de la
+//     posición aceptada se ignoran.
+//  3. Movimiento: se confirma con 2 fixes seguidos fuera de la tolerancia, coherentes,
+//     Y con desplazamiento neto ≥ 4 m en los últimos 4 s (el ruido va y viene; al
+//     caminar se avanzan 4,4–5,6 m en 4 s) o un cambio ≥ 2 × tolerancia (reubicación); la
+//     2.ª lectura no debe volver hacia la posición aceptada. En modo EN MOVIMIENTO cada fix coherente
+//     que avanza en el sentido del desplazamiento neto actualiza la cámara (sin retraso
+//     extra al caminar); vuelve a QUIETO cuando el desplazamiento neto en 4 s baja de 4 m.
+//  4. Picos: un fix a > 8 m del fix válido anterior se descarta. No hay aceptación por
+//     tiempo: un salto sólo se acepta si fixes posteriores coherentes lo confirman.
+//  5. Desplazamientos confirmados: deslizamiento suave (τ ≈ 0,8 s).
+//  6. Las anclas NUNCA se mueven.
+//  7. GPS degradado (precisión > precisionMin): se ignora; cámara y modelo quedan en su sitio.
 // =============================================================================
 function configurarCamara() {
   const comp = camEl.components["gps-new-camera"];
   if (!comp || !comp.threeLoc) return false;
   comp.threeLoc.setProjection(proyeccionLocal);
-  comp.threeLoc.setGpsOptions({ gpsMinAccuracy: AJUSTES.precisionMin, gpsMinDistance: AJUSTES.distanciaMin });
-  camEl.setAttribute("gps-new-camera", { positionMinAccuracy: AJUSTES.precisionMin, gpsMinDistance: AJUSTES.distanciaMin });
+  comp.threeLoc.setGpsOptions({ gpsMinAccuracy: 0.0001, gpsMinDistance: 0 });
+  camEl.setAttribute("gps-new-camera", { positionMinAccuracy: 0.0001, gpsMinDistance: 0 });
   return true;
 }
 if (!configurarCamara()) {
   camEl.addEventListener("componentinitialized", (e) => { if (e.detail.name === "gps-new-camera") configurarCamara(); });
 }
 
-let posVisual = null;      // {x, z} posición mostrada (la que se desliza)
-let saltoPendiente = null; // {x, z, lat, lon} salto sospechoso a la espera de confirmación
+let posVisual = null;            // {x, z} posición mostrada (la que se desliza)
+const gps = {
+  fase: "esperando GPS confiable",
+  modo: "quieto",                // "quieto" | "en movimiento"
+  inicio: Date.now(),
+  iniciales: [],                 // fixes candidatos para el origen
+  aceptado: null,                // {lat, lon} posición aceptada de la cámara
+  prevValido: null,              // último fix válido (para coherencia)
+  candidatos: [],                // fixes fuera de la tolerancia (modo quieto)
+  historial: [],                 // fixes válidos recientes {lat, lon, t}
+};
+estado.gps = gps;
 
-camEl.addEventListener("gps-camera-update-position", (e) => {
-  if (errores.length) return;
-  const p = e.detail.position;
+const dist = (a, b) => calcularDistancia(a.lat, a.lon, b.lat, b.lon);
+const media = (fs) => ({ lat: fs.reduce((s, f) => s + f.lat, 0) / fs.length, lon: fs.reduce((s, f) => s + f.lon, 0) / fs.length });
+
+camEl.addEventListener("gps-camera-update-position", () => {
+  // Sólo se produce una vez: cuando el módulo fija el origen con fakeGps.
+  if (errores.length || estado.origenFijado) return;
+  estado.origenFijado = true;
   const cam = camEl.object3D.position;
-  const nuevo = { x: cam.x, z: cam.z, lat: p.latitude, lon: p.longitude };
-  estado.fixesAceptados++;
-
-  if (!estado.origenFijado) {
-    // Primer fix: origen del mundo (initialPositionAsOrigin) y anclas (D14).
-    estado.origenFijado = true;
-    posVisual = { x: nuevo.x, z: nuevo.z };
-    aceptarPosicion(nuevo, 0);
-    lugares.forEach((l) => {
-      l.ancla.setAttribute("gps-new-entity-place", { latitude: l.lat, longitude: l.lon });
-      l.estado = "anclado";
-    });
-    evento("gps", "📌 Anclas geolocalizadas (" + lugares.length + ")");
-    actualizarLugares();
-    return;
-  }
-
-  // AR.js ya movió la cámara: se restaura la posición visual y se desliza en tick().
-  cam.x = posVisual.x;
-  cam.z = posVisual.z;
-  const obj = estado.objetivoCamara;
-  const salto = Math.hypot(nuevo.x - obj.x, nuevo.z - obj.z);
-
-  if (saltoPendiente) {
-    const conf = Math.hypot(nuevo.x - saltoPendiente.x, nuevo.z - saltoPendiente.z);
-    saltoPendiente = null;
-    if (conf <= AJUSTES.confirmacion) {
-      evento("gps", "✅ GPS: salto de " + salto.toFixed(1) + " m confirmado");
-      aceptarPosicion(nuevo, salto);
-      return;
-    }
-  }
-  if (salto > AJUSTES.saltoSospechoso) {
-    saltoPendiente = { ...nuevo, t: Date.now() };
-    estado.saltosRetenidos++;
-    evento("gps", "🚫 GPS: salto sospechoso de " + salto.toFixed(1) + " m retenido hasta confirmar");
-    return;
-  }
-  aceptarPosicion(nuevo, salto);
+  posVisual = { x: cam.x, z: cam.z };
+  estado.objetivoCamara = { x: cam.x, z: cam.z };
+  lugares.forEach((l) => {
+    l.ancla.setAttribute("gps-new-entity-place", { latitude: l.lat, longitude: l.lon });
+    l.estado = "anclado";
+  });
+  evento("gps", "📌 Anclas geolocalizadas (" + lugares.length + ") con GPS confiable");
+  actualizarLugares();
 });
 
-function aceptarPosicion(n, salto) {
-  estado.objetivoCamara = { x: n.x, z: n.z };
-  estado.ultimoFix = { lat: n.lat, lon: n.lon };
-  estado.ultimoSaltoM = salto;
-  if (salto > 0) evento("gps", "⚡ GPS: la cámara se desliza " + salto.toFixed(1) + " m");
+function procesarFix(f) {
+  // Regla 1: origen confiable
+  if (!gps.aceptado) {
+    const accInicial = Date.now() - gps.inicio > 30000 ? AJUSTES.precisionMin : AJUSTES.precisionInicial;
+    if (f.acc > accInicial) { gps.iniciales = []; gps.fase = "esperando GPS confiable (±" + f.acc.toFixed(0) + " m)"; return; }
+    gps.iniciales.push(f);
+    if (gps.iniciales.length > 3) gps.iniciales.shift();
+    const m = media(gps.iniciales);
+    if (gps.iniciales.length < 3 || gps.iniciales.some((x) => dist(x, m) > AJUSTES.tolerancia)) {
+      gps.fase = "esperando GPS confiable (" + gps.iniciales.length + "/3)";
+      return;
+    }
+    const comp = camEl.components["gps-new-camera"];
+    if (!comp || !comp.threeLoc) return;
+    gps.aceptado = m;
+    gps.prevValido = f;
+    gps.fase = "estable";
+    estado.ultimoFix = { lat: m.lat, lon: m.lon };
+    comp.threeLoc.fakeGps(m.lon, m.lat, null, 0); // origen del mundo + anclas (handler de arriba)
+    return;
+  }
+  // Regla 7: GPS degradado
+  if (f.acc > AJUSTES.precisionMin) { gps.fase = "GPS degradado (±" + f.acc.toFixed(0) + " m): posición en espera"; return; }
+  gps.fase = "estable";
+  // Regla 4: coherencia con el fix válido anterior
+  const coherente = dist(f, gps.prevValido) <= AJUSTES.saltoSospechoso;
+  gps.prevValido = f;
+  if (!coherente) {
+    gps.candidatos = [];
+    estado.saltosRetenidos++;
+    evento("gps", "🚫 GPS: pico descartado (incoherente con el fix anterior)");
+    return;
+  }
+  gps.historial.push({ lat: f.lat, lon: f.lon, t: Date.now() });
+  gps.historial = gps.historial.filter((h) => Date.now() - h.t <= AJUSTES.ventanaMovimiento);
+  const h = gps.historial;
+  const neto = h.length >= 2 ? dist(h[0], h[h.length - 1]) : 0; // desplazamiento neto en la ventana
+  const d = dist(f, gps.aceptado);
+
+  if (gps.modo === "quieto") {
+    // Reglas 2 y 3
+    const tol = Math.max(AJUSTES.tolerancia, f.acc / 2);
+    if (d <= tol) { gps.candidatos = []; return; }
+    const c = gps.candidatos;
+    if (c.length && d < dist(c[c.length - 1], gps.aceptado) - 0.5) { gps.candidatos = [f]; return; } // vuelve: deriva
+    c.push(f);
+    if (c.length < AJUSTES.confirmaciones) return;
+    if (neto < AJUSTES.netoMovimiento && d < 2 * tol) return; // deriva del GPS, no movimiento
+    const m = media(gps.candidatos);
+    gps.candidatos = [];
+    gps.modo = "en movimiento";
+    evento("gps", "🚶 GPS: movimiento confirmado por " + AJUSTES.confirmaciones + " lecturas coherentes");
+    aceptarPosicion(m);
+  } else {
+    // Sólo pasos en el sentido del desplazamiento neto (al caminar la dirección es estable;
+    // el ruido cambia de sentido).
+    const [ax, ay] = proyeccionLocal.project(gps.aceptado.lon, gps.aceptado.lat);
+    const [fx, fy] = proyeccionLocal.project(f.lon, f.lat);
+    const [h0x, h0y] = proyeccionLocal.project(h[0].lon, h[0].lat);
+    const avanza = (fx - ax) * (fx - h0x) + (fy - ay) * (fy - h0y) > 0;
+    if (d >= 1 && avanza) aceptarPosicion(f);
+    if (h.length >= 3 && neto < AJUSTES.netoMovimiento) {
+      gps.modo = "quieto";
+      evento("gps", "🧍 GPS: usuario quieto (tolerancia " + AJUSTES.tolerancia + " m activa)");
+    }
+  }
 }
 
-// Si en 2 s no llega ningún fix que contradiga un salto retenido, se acepta
-// (iOS puede dejar de entregar fixes cuando la posición no cambia).
-setInterval(() => {
-  if (!saltoPendiente || Date.now() - saltoPendiente.t < 2000) return;
-  const pend = saltoPendiente, o = estado.objetivoCamara;
-  saltoPendiente = null;
-  evento("gps", "✅ GPS: salto de " + Math.hypot(pend.x - o.x, pend.z - o.z).toFixed(1) + " m confirmado (sin fixes contradictorios)");
-  aceptarPosicion(pend, Math.hypot(pend.x - o.x, pend.z - o.z));
-}, 500);
+function aceptarPosicion(p) {
+  const comp = camEl.components["gps-new-camera"];
+  const w = comp.threeLoc.lonLatToWorldCoords(p.lon, p.lat);
+  const o = estado.objetivoCamara;
+  const salto = Math.hypot(w[0] - o.x, w[1] - o.z);
+  estado.objetivoCamara = { x: w[0], z: w[1] };
+  estado.ultimoFix = { lat: p.lat, lon: p.lon };
+  estado.ultimoSaltoM = salto;
+  estado.fixesAceptados++;
+  gps.aceptado = { lat: p.lat, lon: p.lon };
+  if (salto >= 2) evento("gps", "⚡ GPS: la cámara se desliza " + salto.toFixed(1) + " m");
+}
 
+// Regla 5: deslizamiento suave hacia la posición aceptada
 AFRAME.registerComponent("rageo-deslizamiento", {
   tick: function (t, dt) {
     const obj = estado.objetivoCamara;
@@ -363,28 +428,20 @@ AFRAME.registerComponent("rageo-deslizamiento", {
 });
 camEl.setAttribute("rageo-deslizamiento", "");
 
-// Fixes crudos: distancia mostrada y perímetro opcional
+// Fixes del GPS: estabilización, distancia mostrada y perímetro opcional
 if (errores.length === 0) {
   navigator.geolocation.watchPosition(
     (pos) => {
       const c = pos.coords;
       estado.ultimoCrudo = { lat: c.latitude, lon: c.longitude, acc: c.accuracy, t: Date.now() };
-      // Un salto retenido también se confirma si el GPS se queda junto a él (AR.js no
-      // emite actualización porque el cambio es < distanciaMin).
-      if (saltoPendiente && Date.now() - saltoPendiente.t > 800 && c.accuracy <= AJUSTES.precisionMin &&
-          calcularDistancia(c.latitude, c.longitude, saltoPendiente.lat, saltoPendiente.lon) <= AJUSTES.confirmacion) {
-        const pend = saltoPendiente, o = estado.objetivoCamara;
-        saltoPendiente = null;
-        evento("gps", "✅ GPS: salto de " + Math.hypot(pend.x - o.x, pend.z - o.z).toFixed(1) + " m confirmado");
-        aceptarPosicion(pend, Math.hypot(pend.x - o.x, pend.z - o.z));
-      }
+      procesarFix({ lat: c.latitude, lon: c.longitude, acc: c.accuracy });
       const d = Math.min(...lugares.map((l) => calcularDistancia(c.latitude, c.longitude, l.lat, l.lon)));
       const display = document.getElementById("distancia-display");
       if (display) display.innerText = "Distancia: " + d.toFixed(1) + " m";
       actualizarLugares();
     },
     (err) => console.log("⚠️ GPS error " + err.code + ": " + err.message),
-    { enableHighAccuracy: true }
+    { enableHighAccuracy: true, maximumAge: 0 }
   );
 } else {
   console.log("❌ Configuración inválida: " + errores.join(", "));

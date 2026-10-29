@@ -40,20 +40,21 @@
     </div>
 
     <div id="distancia-display">Distancia: -- m</div>
-    <div id="version-label">RA geo 1.0</div>
+    <div id="version-label">RA geo 1.1</div>
 
     <!-- Capa capturadora de gestos (invisible) -->
     <div id="gesture-layer" aria-hidden="true"></div>
 
     <!-- Sin "embedded" (D16). La cámara va ANTES que las anclas (D13); las anclas
-         (una por lugar) las crea ra-geo.js y se geolocalizan tras el primer fix (D14). -->
+         (una por lugar) las crea ra-geo.js y se geolocalizan con el origen GPS confiable (D14).
+         positionMinAccuracy ≈ 0: AR.js no mueve la cámara; la posición la estabiliza ra-geo.js. -->
     <a-scene
       vr-mode-ui="enabled: false"
       arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
       renderer="antialias: true; alpha: true"
     >
       <a-camera
-        gps-new-camera="gpsMinDistance: 1.5; positionMinAccuracy: 20; initialPositionAsOrigin: true"
+        gps-new-camera="gpsMinDistance: 0; positionMinAccuracy: 0.0001; initialPositionAsOrigin: true"
         arjs-device-orientation-controls="smoothingFactor: 0.1"
       ></a-camera>
     </a-scene>

@@ -2,7 +2,7 @@
 
 > Responsable técnica: **Robin** (IA de ingeniería). Supervisión: **Nami** (IA supervisora). Dirección: **Ale / Capitán**.
 > Rama de trabajo: `claude/zealous-ramanujan-j9jf59` (no fusionada a `main`).
-> Última actualización: 2026-10-17. Entrada #13: `index.html` de esta rama redirige a **`ra-geo.html`** (GitHub Pages publica esta rama desde `/(root)`). Recomendación de §11.9 sin cambios: LISTO PARA INTEGRAR, condicionado a la prueba de aceptación §11.6.
+> Última actualización: 2026-10-29. Entrada #14: **RA geo 1.1**. La URL principal abre Goku en el árbol con el diagnóstico visible, y el GPS queda estabilizado (origen confiable, tolerancia de 3 m, confirmación de movimiento, sin aceptación por tiempo). 🧪 25/25. Pendiente: una prueba exterior (§12.5).
 > *Corrección de registro:* la prueba real #1 (entrada #7) se hizo con **Google Chrome para iOS**, no con Safari.
 > Estado v78: gestos **🟢 verificados en dispositivo** por el Capitán (entrada #4).
 
@@ -298,6 +298,7 @@ El GLB es un *SkinnedMesh* con 1 skin y 15 animaciones (que no se reproducen). E
 | 11 | 2026-10-16 | Capitán | Prueba real #3 (diagnóstica) | iPhone, Chrome iOS, vertical e inmóvil, `gps=fijo`: Goku visualmente quieto; movimiento total en 60 s −0,7°, GPS 0,0°; rotación táctil y zoom OK | — | 🟢 **Orientación estable en el dispositivo** (M1 validado en la práctica) |
 | 12 | 2026-10-17 | Robin | Cierre: módulo RA geo 1.0 | Módulo definitivo en archivos nuevos. GPS: AR.js con `gpsMinDistance` 1,5 m y `positionMinAccuracy` 20 m; **deslizamiento** de la cámara (τ 0,8 s) en vez de saltos; **retención de saltos > 8 m** hasta confirmar (fix siguiente, fix crudo cercano o 2 s sin contradicción). Orientación: D17 + D18 + M1 (filtro rápido). Modelos: varios lugares vía `window.RAGEO_CONFIG`, gestos sobre el modelo más cercano al centro. Diagnóstico separado (`ra-geo-diag.js`, sólo con `?diag=1`). Sin M2, M3 ni M4. | `ra-geo.html`, `ra-geo.js`, `ra-geo-diag.js`, `BITACORA_RA.md` | 🧪 Módulo 25/25 · PoC 30/30 · v78 30/31 (la única falla es del entorno). v78, PoC y `lib/` sin cambios. ⏳ Prueba de aceptación |
 | 13 | 2026-10-17 | Robin | Publicación | A pedido del Capitán: se trabaja sólo en esta rama, publicada por GitHub Pages desde `/(root)`. `index.html` pasa a ser una **redirección** a `ra-geo.html` que conserva los parámetros (`/?diag=1` → `ra-geo.html?diag=1`), con respaldo `<noscript>` y un enlace. La página AR v78 que contenía sigue en el historial (commit `ab62cc7`, etiqueta local `v78`) y puede restaurarse. Sin cambios en el módulo RA, sus dependencias ni otros archivos; ningún archivo eliminado; sin PR; `main` y `claude/ra-geo-publicacion` sin tocar. | `index.html`, `BITACORA_RA.md` | 🧪 Redirección verificada en local (4 URL, incluidas `?diag=1` y `lat`/`lon`) |
+| 14 | 2026-10-29 | Robin | RA geo 1.1 (estabilidad) | URL única: lugar por defecto = árbol (−29.477168, −66.889542) y diagnóstico activo por defecto (`diag=0` lo oculta). GPS: la posición la decide el módulo (AR.js sólo fija el origen). Origen con 3 fixes ≤ 12 m agrupados; tolerancia de 3 m con el usuario quieto; movimiento confirmado por 2 lecturas coherentes + desplazamiento neto ≥ 4 m en 4 s (o reubicación ≥ 6 m) y sin retroceso; modo «en movimiento» que acepta sólo pasos en el sentido del avance; picos (> 8 m respecto del fix anterior) descartados **sin aceptación por tiempo**; GPS degradado (> 20 m) ignorado. Deslizamiento τ 0,8 s, anclas, orientación, gestos y multimodelo sin cambios. | `ra-geo.js`, `ra-geo.html`, `ra-geo-diag.js`, `BITACORA_RA.md` | 🧪 25/25 (entrando por la URL principal) · PoC 30/30 · gestos idénticos a v78. ⏳ Prueba exterior |
 
 <!-- Nuevas entradas: añadir filas al final; no borrar historial. -->
 
@@ -1137,3 +1138,86 @@ Tres reglas sobre la **posición de la cámara**; el ancla no se toca:
   - La página AR v78 (antes `index.html`) sigue en el historial: commit `ab62cc7`. Se restaura con `git checkout ab62cc7 -- index.html`.
   - La PoC sigue en `poc-geo.html`.
 - **Nota:** la rama `claude/ra-geo-publicacion` (creada en la entrada anterior para un posible PR a `main`) queda sin uso y sin cambios. Puede borrarse desde GitHub si se desea.
+
+
+---
+
+## 12. RA geo 1.1 — URL única y estabilización GPS (entrada #14)
+
+### 12.1 URL única
+- `https://lgqseiscelularlg-source.github.io/Cloude/` → `index.html` redirige a `ra-geo.html`, sin parámetros.
+- **Por defecto:** Goku en **−29.477168, −66.889542** (el árbol), con el diagnóstico visible: HUD superior, log inferior, cubo rojo de referencia y botón «📋 Copiar registro».
+- `?diag=0` oculta el diagnóstico (para la versión final). `?lat=&lon=` sigue disponible, pero no hace falta.
+- No se crearon páginas nuevas. La configuración está en `ra-geo.js` (`LUGARES_POR_DEFECTO` y `AJUSTES.diag`).
+
+### 12.2 Diagnóstico del desplazamiento lateral con el usuario quieto (1.0)
+1. Cualquier cambio GPS ≥ 1,5 m (`gpsMinDistance`) movía la cámara. Con ruido de ±3–5 m, el modelo se deslizaba de lado y volvía.
+2. Un salto retenido se aceptaba **solo por pasar 2 s** (regla 4 de esta entrega: incorrecto).
+3. El origen se fijaba con el **primer** fix de precisión ≤ 20 m, aunque fuese malo.
+
+### 12.3 Modificaciones (sólo GPS; anclas, orientación, gestos y multimodelo sin cambios)
+- AR.js ya no mueve la cámara (`positionMinAccuracy` ≈ 0). El módulo decide la posición y AR.js sólo fija el origen (`fakeGps`) y proyecta.
+
+| Regla pedida | Implementación | Resultado 🧪 |
+|---|---|---|
+| 1. Posición inicial confiable | Origen con **3 fixes seguidos ≤ 12 m de precisión, a ≤ 3 m de su media**. Respaldo: tras 30 s admite ≤ 20 m. Sin origen no se muestra el modelo | R1: con ±25 m no aparece; con 3 fixes buenos pero dispersos tampoco; con 3 agrupados, sí |
+| 2. Tolerancia ~3 m | Usuario **quieto**: fixes a ≤ max(3 m, precisión/2) de la posición aceptada se ignoran | R2: fluctuaciones de hasta 2,8 m → cámara inmóvil (0 m) |
+| 3. Varias lecturas coherentes | **2 lecturas seguidas** fuera de la tolerancia, sin volver hacia la posición aceptada, **y** desplazamiento neto ≥ 4 m en 4 s (o reubicación ≥ 6 m) | R3: una lectura a 5 m no mueve; la 2.ª confirma |
+| 4. Sin aceptación por tiempo | Eliminada. Un fix a > 8 m del fix válido anterior se descarta como pico; sólo lecturas posteriores coherentes pueden confirmar un salto | R4: pico de 15 m descartado; pico + 3,5 s de silencio → no se acepta; salto real de 12 m confirmado por lecturas coherentes |
+| 5. Transiciones suaves | Deslizamiento τ 0,8 s (sin cambios) | R3: ≤ 30 % del salto por muestra |
+| 6. Ancla fija, orientación y gestos | Sin cambios (gestos copia textual de v78, verificado con `diff`) | R8 (iOS, γ ±15°: 0°), R9 (gestos), R10 (2 modelos) |
+| 7. GPS degradado | Precisión > 20 m: se ignora; la cámara y el modelo quedan en su sitio; el HUD indica «GPS degradado» | R7: ±45 m con posiciones lejanas → cámara inmóvil, Goku visible |
+
+**Efecto contraproducente detectado y alternativa aplicada (regla 3):**
+- Exigir varias lecturas para **cada** desplazamiento haría que, al caminar, el modelo acompañe al usuario 4–6 m de forma permanente.
+- **Alternativa:** dos modos con histéresis.
+  - **QUIETO:** tolerancia de 3 m y confirmación según la regla 3.
+  - **EN MOVIMIENTO:** una vez confirmado, cada fix coherente que avanza en el sentido del desplazamiento neto actualiza la cámara. Vuelve a QUIETO cuando el desplazamiento neto en 4 s baja de 4 m.
+- **R6** (caminata de 14 m a 1,4 m/s):
+  - Arranque: el modelo acompaña ≈ 4 m durante los primeros 3 s, que es lo que tarda en confirmarse el movimiento.
+  - Durante la caminata: retraso de 0,6 m.
+  - Al detenerse: error de 0 m y vuelta a modo quieto.
+
+**Otro ajuste surgido de las pruebas:**
+- La primera versión del modo EN MOVIMIENTO seguía al ruido (R5: 7 desplazamientos, 14,8 m de recorrido en 30 s quieto).
+- Se añadieron el desplazamiento neto en la ventana y la coherencia de dirección.
+- También se corrigió un error propio: la regla «la 2.ª lectura debe alejarse más» impedía reubicarse estando quieto (R3). Quedó como «no debe volver».
+
+### 12.4 Verificación (🧪 emulación; Chromium headless, toques CDP, GPS y orientación simulados, entrando por la URL principal)
+
+| Grupo | Resultado |
+|---|---|
+| R0 URL principal → `ra-geo.html`: Goku en el árbol, diagnóstico visible (HUD, log, botón, cubo), versión 1.1; `diag=0` lo oculta; ancla a 20,0 m | ✅ 5/5 |
+| R1 Origen confiable · R2 tolerancia · R3 confirmación + deslizamiento · R4 picos sin aceptación por tiempo | ✅ 9/9 |
+| R5 Quieto con ruido GPS (30 s): sin saltos; la cámara nunca más lejos que la deriva del GPS | ✅ |
+| R6 Caminar 14 m y detenerse | ✅ |
+| R7 GPS degradado | ✅ |
+| R8 Orientación iOS (D17, M1) y respuesta al giro | ✅ 2/2 |
+| R9 Gestos v78 y «Copiar registro» · R10 dos modelos | ✅ 6/6 |
+| **Total** | ✅ **25/25** · PoC 30/30 (regresión) |
+
+**R5, distribución en 6 corridas de 30 s quieto** (ruido simulado σ 2 m por eje, τ 4 s, 1 fix/s; deriva máxima del GPS 3,9–6,6 m):
+
+| Corrida | Desplazamientos | Recorrido de la cámara | Recorrido del GPS |
+|---|---|---|---|
+| 1, 4, 6 | **0** | 0 m | 41–49 m |
+| 5 | 2 | 4,1 m | 50 m |
+| 2, 3 | 4 | 13–15 m | 49–51 m |
+
+- **Límite físico (no es un ajuste pendiente):** cuando el GPS deriva ≥ 4 m en 4 s en una dirección sostenida, esa deriva es **indistinguible de caminar** sólo con GPS. En esos casos la cámara la sigue con deslizamientos suaves, sin saltos, y vuelve a quieto.
+- **Si la prueba exterior muestra este efecto con el usuario quieto,** la solución técnica es la **M4** (detectar pasos con el acelerómetro y sólo aceptar movimiento si hay pasos). Requiere el permiso de movimiento de iOS, que se pide con el mismo botón. No se implementa sin autorización.
+
+### 12.5 Prueba exterior única (URL principal, sin parámetros)
+1. Abrir **`https://lgqseiscelularlg-source.github.io/Cloude/`**, comprobar «**RA geo 1.1**» y conceder permisos («Allow» / «Activar brújula»). Calibrar con un «8».
+2. A ~15 m del árbol: esperar a que el HUD pase de «esperando GPS confiable (n/3)» a mostrar a Goku. Comprobar «coherencia OK» y GPS «quieto».
+3. **Quieto 60 s** apuntando al árbol (captura S1): Goku sin deslizamientos laterales. Aceptable: como máximo un deslizamiento suave, coincidente con una línea `⚡`/`🚶` en el log.
+4. **Girar** el teléfono a un lado y volver: Goku sale y vuelve al mismo lugar.
+5. **Caminar 10 m de costado** apuntando al árbol y detenerse 10 s (captura S2): Goku sobre el árbol (≤ 1/3 del ancho de la pantalla). En el log: `🚶 movimiento confirmado` al arrancar y `🧍 usuario quieto` al detenerse.
+6. Volver al punto inicial (captura S3) y probar rotación horizontal, rotación vertical y zoom.
+7. «📋 Copiar registro» y enviarlo con S1–S3.
+- **Se aprueba si:**
+  - Goku no aparece ni desaparece por el GPS.
+  - No hay saltos.
+  - En S1–S3 está sobre el árbol (≤ 1/3 del ancho).
+  - Los gestos funcionan.
+- **Si con el usuario quieto aparecen desplazamientos 🚶 repetidos,** es el límite de §12.4 → proponer la M4.

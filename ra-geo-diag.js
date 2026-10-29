@@ -107,7 +107,7 @@
     L.push("# RealityTour " + G.version + " · registro diagnóstico · " + new Date().toISOString());
     L.push("# UA: " + navigator.userAgent);
     L.push("# URL: " + location.href);
-    L.push("# fixes aceptados " + estado.fixesAceptados + " · saltos retenidos " + estado.saltosRetenidos + " · respaldo orientación " + estado.respaldoOrientacion);
+    L.push("# desplazamientos aceptados " + estado.fixesAceptados + " · picos descartados " + estado.saltosRetenidos + " · GPS " + (estado.gps ? estado.gps.fase + " / " + estado.gps.modo : "--") + " · respaldo orientación " + estado.respaldoOrientacion);
     lugares.forEach((l) => { const co = coherencia(l); L.push("# " + l.id + ": " + l.estado + " · coherencia " + (co ? (co.ok ? "OK" : "ERROR") + " Δdist " + f(co.dD, 2) + " m Δrumbo " + f(co.dR, 1) + "°" : "--")); });
     for (const [n, ms] of [["10 s", 1e4], ["60 s", 6e4]]) {
       const s = ventana(ms);
@@ -147,7 +147,8 @@
     const L = [G.version + " · diagnóstico"];
     const c = estado.ultimoCrudo;
     L.push(c ? "GPS: " + span(c.acc <= 10 ? "ok" : c.acc <= G.AJUSTES.precisionMin ? "warn" : "bad", "±" + f(c.acc, 0) + " m") +
-      " · aceptados " + estado.fixesAceptados + " · último desliz " + f(estado.ultimoSaltoM) + " m · retenidos " + estado.saltosRetenidos : span("warn", "GPS: esperando primer fix…"));
+      " · " + (estado.gps ? (estado.gps.fase === "estable" ? span("ok", estado.gps.modo) : span("warn", estado.gps.fase)) : "") +
+      " · desplazamientos " + estado.fixesAceptados + " · último " + f(estado.ultimoSaltoM) + " m · picos descartados " + estado.saltosRetenidos : span("warn", "GPS: esperando primer fix…"));
     const o = estado.orient, n = estado.norte, ctrl = G.controlAR();
     const recibe = !!(ctrl && ctrl.deviceOrientation && ctrl.deviceOrientation.type && ctrl.deviceOrientation.alpha !== null);
     L.push("Orientación: " + (recibe ? span("ok", "AR.js recibe datos") : span("bad", "AR.js SIN DATOS")) +
